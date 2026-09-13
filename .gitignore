@@ -1,0 +1,46 @@
+# Python
+__pycache__/
+*.py[cod]
+*.pyo
+
+# Virtual environments
+venv/
+.venv/
+env/
+ENV/
+
+# Jupyter Notebook
+.ipynb_checkpoints/
+
+# Environment variables / secrets
+
+.env
+.env.*
+# Data files
+*.csv
+*.xlsx
+*.xls
+*.parquet
+
+# DuckDB
+*.duckdb
+*.db
+
+# Logs
+*.log
+logs/
+
+# Generated files
+outputs/
+artifacts/
+*.png
+*.jpg
+*.jpeg
+
+# IDE
+.vscode/
+.idea/
+
+# OS
+.DS_Store
+Thumbs.db
