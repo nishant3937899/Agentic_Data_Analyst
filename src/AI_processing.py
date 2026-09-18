@@ -11,6 +11,16 @@ def load_api_key(api_ky=None):
 #gemini here
 def ask_agent(user_question,client):
 
+
+    charts = []
+
+    conversation = [
+        types.Content(
+            role="user",
+            parts=[types.Part(text=user_question)]
+        )
+    ]
+
     conversation = [
         types.Content(
             role="user",
@@ -90,6 +100,13 @@ def ask_agent(user_question,client):
 
             print(tool_result)
 
+
+            # collect generated chart
+            if tool_name == "make_chart":
+                if tool_result.get("status") == "success":
+                    charts.append(tool_result)
+
+
             # Send result back to Gemini
             conversation.append(
                 types.Content(
@@ -118,8 +135,11 @@ def ask_agent(user_question,client):
 
             if part.text:
                 final_text += part.text
-
+        print(charts)
         print(final_text)
-        return final_text
+        return {
+            "answer": final_text,
+            "charts": charts
+        }
 
     

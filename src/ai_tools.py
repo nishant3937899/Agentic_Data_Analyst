@@ -21,11 +21,24 @@ def execute_tool(name, args):
             chart_type=args["chart_type"],
             x=args.get("x"),
             y=args.get("y"),
-            title=args.get("title"),
             hue=args.get("hue"),
+            title=args.get("title"),
+            color=args.get("color"),
+            colors=args.get("colors"),
+            palette=args.get("palette"),
+            alpha=args.get("alpha", 0.8),
+            height=args.get("height", 500),
+            width=args.get("width", 900),
+            rotation=args.get("rotation", 0),
+            marker=args.get("marker", "circle"),
+            linewidth=args.get("linewidth", 2),
+            annotate=args.get("annotate", False),
+            colormap=args.get("colormap", "Viridis"),
             bins=args.get("bins", 20),
-            number=args.get("number")
-        )
+            rolling_window=args.get("rolling_window", 7),
+            bubble_scale=args.get("bubble_scale", 20),
+            size=args.get("size")
+    )
 
     elif name == "clean_data":
         return clean_data(
@@ -120,481 +133,7 @@ gemini_tools = [
                 }
             ),
 
-            # =====================================================
-            # TOOL 3 — MAKE CHARTS
-            # =====================================================
-            types.FunctionDeclaration(
-                name="make_chart",
 
-                description="""
-                Create a chart from an existing query result.
-
-                IMPORTANT:
-                - You MUST use a result_id returned by run_sql or feature_engineering.
-                - Only use column names that exist in that result.
-                - Do NOT invent column names.
-                - Choose the simplest chart that clearly communicates the insight.
-                - The chart is created by Python; NEVER generate plotting code yourself.
-
-                SUPPORTED CHART TYPES:
-                1. bar
-                2. horizontal_bar
-                3. line
-                4. area
-                5. scatter
-                6. histogram
-                7. box
-                8. violin
-                9. pie
-                10. donut
-                11. grouped_bar
-                12. stacked_bar
-                13. heatmap
-                14. correlation_heatmap
-                15. density
-                16. ecdf
-                17. pareto
-                18. rolling_line
-                19. hexbin
-                20. bubble
-                21. waterfall
-
-
-                CHART SELECTION RULES:
-
-                BAR:
-                Use when comparing one numeric metric across categories.
-
-                Example:
-                x = "test_preparation_course"
-                y = "avg_math"
-                chart_type = "bar"
-
-
-                HORIZONTAL_BAR:
-                Use when category names are long or when a horizontal comparison is clearer.
-
-
-                LINE:
-                Use for trends over time or ordered numerical values.
-
-                Example:
-                x = "month"
-                y = "avg_sales"
-
-
-                AREA:
-                Use for trends where the magnitude or cumulative contribution is important.
-
-
-                SCATTER:
-                Use to investigate the relationship between two numerical variables.
-
-                Example:
-                x = "math_score"
-                y = "reading_score"
-
-
-                HISTOGRAM:
-                Use to show the distribution of a numerical variable.
-
-                Example:
-                y = "math_score"
-
-
-                BOX:
-                Use to show distribution, spread, median and outliers.
-
-
-                VIOLIN:
-                Use to compare distributions across categories.
-
-                Example:
-                x = "gender"
-                y = "math_score"
-
-
-                PIE:
-                Use only when showing the composition of a small number of categories.
-
-
-                DONUT:
-                Same use case as pie, but with a donut-style visualization.
-
-
-                GROUPED_BAR:
-                Use to compare multiple metrics or subcategories.
-
-                IMPORTANT RULES:
-                - hue is OPTIONAL.
-                - NEVER set hue equal to x.
-                - If there is only one categorical column and one metric,
-                leave hue empty.
-                - If x and hue are the same column, do NOT provide hue.
-                - If multiple numeric metrics are available, y may contain
-                multiple columns.
-
-                Example 1:
-                x = "test_preparation_course"
-                y = "avg_math"
-                hue = null
-
-                Example 2:
-                x = "test_preparation_course"
-                y = ["avg_math", "avg_reading", "avg_writing"]
-                hue = null
-
-                Example 3:
-                x = "gender"
-                y = "avg_math"
-                hue = "test_preparation_course"
-
-                Do NOT do this:
-                x = "test_preparation_course"
-                hue = "test_preparation_course"
-
-
-                STACKED_BAR:
-                Use when categories should be stacked to show composition.
-
-                HEATMAP:
-                Use to show values across two categorical dimensions or a matrix.
-
-                CORRELATION_HEATMAP:
-                Use when the goal is to understand relationships between multiple
-                numerical columns.
-
-                DENSITY:
-                Use to show the distribution of a numerical variable.
-
-                ECDF:
-                Use to compare cumulative distributions.
-
-                PARETO:
-                Use when categories should be ranked and cumulative contribution
-                should be shown.
-
-                ROLLING_LINE:
-                Use for noisy ordered/time-series data where a rolling average
-                helps reveal the trend.
-
-                HEXBIN:
-                Use for very large numerical datasets where a scatter plot would
-                contain too many overlapping points.
-
-                BUBBLE:
-                Use when a third numerical variable can meaningfully represent
-                magnitude through bubble size.
-
-                WATERFALL:
-                Use when showing how individual positive/negative contributions
-                lead to a final total.
-
-
-                IMPORTANT Y RULE:
-                - y can be either one column name or a list of column names.
-                - For charts that require a single numerical variable, use one y column.
-                - For grouped_bar and stacked_bar, multiple y columns are allowed.
-                - Never pass an empty y value when the selected chart requires y.
-
-
-                COLOR AND STYLE:
-                You may optionally specify:
-                - color
-                - colors
-                - palette
-                - alpha
-                - figsize
-                - grid
-                - grid_axis
-                - legend
-                - rotation
-                - font_size
-                - title_size
-                - label_size
-                - marker
-                - linewidth
-                - annotate
-                - colormap
-                - bins
-                - rolling_window
-                - bubble_scale
-
-                Do not invent unusual styling parameters.
-                Use default styling unless the user requests a specific style.
-
-                For heatmap, correlation_heatmap and hexbin, use colormap.
-                For categorical charts, color/colors/palette may be used.
-
-                If the user does not request a specific color or palette,
-                use the chart tool's default.
-
-
-                GENERAL RULES:
-                0.You should give number to the plot you are makin for example first plot will be number one, the number should aways start form 1 and go so on.
-                1. First obtain or inspect the relevant data using run_sql.
-                2. Use the returned result_id.
-                3. Choose a chart that directly supports the analytical conclusion.
-                4. Do not create a chart just for decoration.
-                5. If the result has only one category and one metric,
-                use a simple bar chart.
-                6. If comparing several metrics across categories,
-                use grouped_bar.
-                7. If analyzing a relationship between two numerical variables,
-                use scatter.
-                8. If analyzing distributions, use histogram, box or violin.
-                9. If analyzing correlation among numerical variables,
-                use correlation_heatmap.
-                10. If analyzing time trends, use line or rolling_line.
-                11. After creating the chart, continue reasoning if another tool
-                    is required.
-                12. Do not stop merely because a chart was successfully created.
-                """,
-
-                parameters={
-                    "type": "object",
-
-                    "properties": {
-
-                        "result_id": {
-                            "type": "string",
-                            "description": (
-                                "ID of the existing query result returned by "
-                                "run_sql or feature_engineering."
-                            )
-                        },
-
-                        "chart_type": {
-                            "type": "string",
-
-                            "enum": [
-                                "bar",
-                                "horizontal_bar",
-                                "line",
-                                "area",
-                                "scatter",
-                                "histogram",
-                                "box",
-                                "violin",
-                                "pie",
-                                "donut",
-                                "grouped_bar",
-                                "stacked_bar",
-                                "heatmap",
-                                "correlation_heatmap",
-                                "density",
-                                "ecdf",
-                                "pareto",
-                                "rolling_line",
-                                "hexbin",
-                                "bubble",
-                                "waterfall"
-                            ],
-
-                            "description": (
-                                "Type of chart to create. "
-                                "Choose the simplest chart appropriate "
-                                "for the analytical question."
-                            )
-                        },
-
-                        "x": {
-                            "type": "string",
-                            "description": (
-                                "Column used for the x-axis or category. "
-                                "Must exist in the result_id dataset."
-                            )
-                        },
-
-                        "y": {
-                            "type": "string",
-                            "description": (
-                                "Numeric column to visualize. "
-                                "For grouped_bar and stacked_bar, multiple "
-                                "numeric columns may be supplied when supported."
-                            )
-                        },
-                        "number":{
-                            "type":"integer",
-                            "description":(
-                                "here you should put the plot number for example 1,2,3,4 and so on always sent this."
-                                "the number should start form 1 and go so on."
-                            )
-                        },
-                        "hue": {
-                            "type": "string",
-                            "description": (
-                                "Optional second categorical grouping column. "
-                                "IMPORTANT: never set hue equal to x. "
-                                "Leave empty when there is only one categorical "
-                                "grouping variable."
-                            )
-                        },
-
-                        "title": {
-                            "type": "string",
-                            "description": (
-                                "Clear descriptive title explaining what "
-                                "the chart shows."
-                            )
-                        },
-
-                        "color": {
-                            "type": "string",
-                            "description": (
-                                "Optional single color for the chart."
-                            )
-                        },
-
-                        "colors": {
-                            "type": "array",
-                            "items": {
-                                "type": "string"
-                            },
-                            "description": (
-                                "Optional list of colors for categories."
-                            )
-                        },
-
-                        "palette": {
-                            "type": "string",
-                            "description": (
-                                "Optional color palette name supported by "
-                                "the chart implementation."
-                            )
-                        },
-
-                        "alpha": {
-                            "type": "number",
-                            "description": (
-                                "Transparency of chart elements. "
-                                "Usually between 0 and 1."
-                            )
-                        },
-
-                        "figsize": {
-                            "type": "array",
-                            "items": {
-                                "type": "number"
-                            },
-                            "description": (
-                                "Chart size as [width, height]."
-                            )
-                        },
-
-                        "grid": {
-                            "type": "boolean",
-                            "description": (
-                                "Whether to display the chart grid."
-                            )
-                        },
-
-                        "grid_axis": {
-                            "type": "string",
-                            "enum": [
-                                "both",
-                                "x",
-                                "y"
-                            ],
-                            "description": (
-                                "Axis on which the grid should appear."
-                            )
-                        },
-
-                        "legend": {
-                            "type": "boolean",
-                            "description": (
-                                "Whether to display the legend."
-                            )
-                        },
-
-                        "rotation": {
-                            "type": "number",
-                            "description": (
-                                "Rotation angle for x-axis labels."
-                            )
-                        },
-
-                        "font_size": {
-                            "type": "number",
-                            "description": (
-                                "Font size for axis tick labels."
-                            )
-                        },
-
-                        "title_size": {
-                            "type": "number",
-                            "description": (
-                                "Font size for the chart title."
-                            )
-                        },
-
-                        "label_size": {
-                            "type": "number",
-                            "description": (
-                                "Font size for axis labels."
-                            )
-                        },
-
-                        "marker": {
-                            "type": "string",
-                            "description": (
-                                "Marker style for line charts."
-                            )
-                        },
-
-                        "linewidth": {
-                            "type": "number",
-                            "description": (
-                                "Line width for line-based charts."
-                            )
-                        },
-
-                        "annotate": {
-                            "type": "boolean",
-                            "description": (
-                                "Whether to display values directly on "
-                                "the chart where supported."
-                            )
-                        },
-
-                        "colormap": {
-                            "type": "string",
-                            "description": (
-                                "Colormap used by heatmap, correlation_heatmap "
-                                "and hexbin charts."
-                            )
-                        },
-
-                        "bins": {
-                            "type": "integer",
-                            "description": (
-                                "Number of bins for histogram."
-                            )
-                        },
-
-                        "rolling_window": {
-                            "type": "integer",
-                            "description": (
-                                "Window size for rolling_line."
-                            )
-                        },
-
-                        "bubble_scale": {
-                            "type": "number",
-                            "description": (
-                                "Scaling factor for bubble sizes."
-                            )
-                            }
-                        },
-                    
-
-                    "required": [
-                        "result_id",
-                        "chart_type"
-                    ]
-                }
-            ),
 
             # =====================================================
             # TOOL 4 — CLEAN DATA
@@ -838,7 +377,319 @@ gemini_tools = [
                                 "type": "object",
                                 "properties": {}
                             }
-                )
+                ),
+
+
+            # =====================================================
+            # TOOL 3 — MAKE CHARTS
+            # =====================================================
+
+            types.FunctionDeclaration(
+                name="make_chart",
+
+                description="""
+            Create an interactive Plotly chart from the result of a previous
+            run_sql or feature_engineering tool call.
+
+            IMPORTANT:
+            - Use the result_id returned by run_sql or feature_engineering.
+            - Do NOT provide a chart number.
+            - Do NOT provide a filename.
+            - The application automatically generates a unique chart ID and filename.
+            - Every call creates a new chart, even if the same chart is requested again.
+            - Multiple charts can be created from the same result_id.
+
+            WORKFLOW:
+            1. Use run_sql to obtain the data needed for the chart.
+            2. Use the returned result_id with make_chart.
+            3. If feature engineering was used, use the NEW result_id returned by
+            feature_engineering.
+            4. Create a chart only when visualization helps answer the user's question.
+
+            CHART TYPES:
+
+            bar:
+                Use for comparing a categorical column with one numeric metric.
+                Example: average math score by gender.
+
+            horizontal_bar:
+                Use when category labels are long or there are many categories.
+
+            line:
+                Use for trends or ordered/time-based data.
+                y can contain multiple numeric columns.
+
+            area:
+                Use for trends where the magnitude or cumulative pattern is important.
+
+            scatter:
+                Use to examine the relationship between two numeric variables.
+                hue can optionally divide points into categories.
+
+            histogram:
+                Use to show the distribution of a numeric variable.
+                bins controls the number of bins.
+
+            box:
+                Use to compare distributions, spread, median, and outliers.
+                x can be a categorical grouping column.
+
+            violin:
+                Use to compare distributions and their shapes.
+                x can be a categorical grouping column.
+
+            pie:
+                Use for part-to-whole relationships with a small number of categories.
+
+            donut:
+                Same purpose as pie, with a hole in the center.
+
+            grouped_bar:
+                Use to compare multiple groups side by side.
+                Two valid patterns:
+                1. x + one y + hue
+                2. x + multiple y columns
+                NEVER set hue equal to x.
+                If there is only one categorical grouping column, leave hue empty.
+
+            stacked_bar:
+                Use to show how multiple metrics contribute to a total across categories.
+
+            heatmap:
+                Use for matrix-style relationships or categorical/numeric summaries.
+                If x/y/hue are not suitable, the tool can create a numeric correlation-style
+                heatmap.
+
+            correlation_heatmap:
+                Use specifically to show correlations between numeric columns.
+
+            density:
+                Use to examine the shape of a numeric distribution.
+
+            ecdf:
+                Use to compare cumulative distributions.
+
+            pareto:
+                Use when categories should be ordered by contribution and cumulative
+                percentage is useful.
+
+            rolling_line:
+                Use for ordered/time-based data when a moving average is useful.
+                rolling_window controls the window size.
+
+            hexbin:
+                Use for large datasets when a scatter plot would contain too many points.
+                It shows point density.
+
+            bubble:
+                Use for three-variable relationships:
+                x, y, and a size variable.
+                Use the size argument to specify the numeric size column.
+
+            waterfall:
+                Use to show sequential positive and negative contributions to a total.
+
+            COLUMN RULES:
+            - x must be an existing column.
+            - y must be an existing column or a list of existing columns.
+            - hue is optional.
+            - size is optional and must be a numeric column.
+            - Never invent column names.
+            - Use lookup_schema or run_sql results to determine valid column names.
+            - Never use hue equal to x.
+            - Choose chart_type based on the analytical question, not randomly.
+
+            STYLING:
+            You may provide:
+            - title
+            - color
+            - colors
+            - palette
+            - alpha
+            - height
+            - width
+            - rotation
+            - marker
+            - linewidth
+            - annotate
+            - colormap
+            - bins
+            - rolling_window
+            - bubble_scale
+            - size
+
+            Keep styling appropriate to the data.
+            Do not provide unnecessary styling arguments.
+
+            CHART IDs:
+            The application generates the chart ID automatically.
+            NEVER send:
+            - number
+            - filename
+            - chart_id
+
+            The chart returned by this tool is interactive Plotly HTML and can be
+            displayed directly by the web application.
+            """,
+
+                parameters={
+                    "type": "object",
+
+                    "properties": {
+
+                        "result_id": {
+                            "type": "string",
+                            "description": (
+                                "The result_id returned by run_sql or "
+                                "feature_engineering."
+                            )
+                        },
+
+                        "chart_type": {
+                            "type": "string",
+                            "enum": [
+                                "bar",
+                                "horizontal_bar",
+                                "line",
+                                "area",
+                                "scatter",
+                                "histogram",
+                                "box",
+                                "violin",
+                                "pie",
+                                "donut",
+                                "grouped_bar",
+                                "stacked_bar",
+                                "heatmap",
+                                "correlation_heatmap",
+                                "density",
+                                "ecdf",
+                                "pareto",
+                                "rolling_line",
+                                "hexbin",
+                                "bubble",
+                                "waterfall"
+                            ],
+                            "description": "Type of Plotly chart to create."
+                        },
+
+                        "x": {
+                            "type": "string",
+                            "description": "Column used for the x-axis or category."
+                        },
+
+                        "y": {
+                            "description": (
+                                "Column or list of columns used for the y-axis. "
+                                "Use a list for multiple metrics."
+                            ),
+                            "anyOf": [
+                                {"type": "string"},
+                                {
+                                    "type": "array",
+                                    "items": {"type": "string"}
+                                }
+                            ]
+                        },
+
+                        "hue": {
+                            "type": "string",
+                            "description": (
+                                "Optional categorical grouping column. "
+                                "NEVER use the same column as x."
+                            )
+                        },
+
+                        "title": {
+                            "type": "string",
+                            "description": "Chart title."
+                        },
+
+                        "color": {
+                            "type": "string",
+                            "description": "Optional single color."
+                        },
+
+                        "colors": {
+                            "type": "array",
+                            "items": {"type": "string"},
+                            "description": "Optional list of colors."
+                        },
+
+                        "palette": {
+                            "type": "string",
+                            "description": "Optional Plotly color palette."
+                        },
+
+                        "alpha": {
+                            "type": "number",
+                            "description": "Opacity from 0 to 1."
+                        },
+
+                        "height": {
+                            "type": "integer",
+                            "description": "Chart height in pixels."
+                        },
+
+                        "width": {
+                            "type": "integer",
+                            "description": "Chart width in pixels."
+                        },
+
+                        "rotation": {
+                            "type": "number",
+                            "description": "Rotation angle for x-axis labels."
+                        },
+
+                        "marker": {
+                            "type": "string",
+                            "description": "Plotly marker style."
+                        },
+
+                        "linewidth": {
+                            "type": "number",
+                            "description": "Line width."
+                        },
+
+                        "annotate": {
+                            "type": "boolean",
+                            "description": "Whether to display values/annotations where supported."
+                        },
+
+                        "colormap": {
+                            "type": "string",
+                            "description": "Plotly continuous color scale."
+                        },
+
+                        "bins": {
+                            "type": "integer",
+                            "description": "Number of histogram bins."
+                        },
+
+                        "rolling_window": {
+                            "type": "integer",
+                            "description": "Window size for rolling_line."
+                        },
+
+                        "bubble_scale": {
+                            "type": "number",
+                            "description": "Maximum bubble size."
+                        },
+
+                        "size": {
+                            "type": "string",
+                            "description": "Numeric column controlling bubble size."
+                        }
+                    },
+
+                    "required": [
+                        "result_id",
+                        "chart_type"
+                    ]
+                }
+            )
+
+
         ]
     )
 ]

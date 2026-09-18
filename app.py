@@ -1,93 +1,260 @@
 from src.AI_processing import ask_agent, load_api_key
-from flask import Flask, render_template, request, session
+from flask import Flask, render_template, request, session, jsonify
 import pandas as pd
 import io
+import os
+import markdown
+
 from src.database import load_dataframe
-from flask import session
+
 
 app = Flask(__name__)
 
-
-
-# Needed for Flask session
 app.secret_key = "change-this-later"
 
+# =========================================================
+# CLEAR OLD CHARTS
+# =========================================================
 
-@app.route("/", methods=["GET", "POST"])
+def clear_old_charts():
+
+    chart_folder = "static/charts"
+
+    if not os.path.exists(chart_folder):
+        os.makedirs(chart_folder)
+
+    for filename in os.listdir(chart_folder):
+
+        if filename.endswith(".html"):
+
+            file_path = os.path.join(chart_folder, filename)
+
+            try:
+                os.remove(file_path)
+                print(f"Deleted old chart: {filename}")
+
+            except OSError as e:
+                print(f"Could not delete {filename}: {e}")
+
+
+# =========================================================
+# HOME PAGE
+# =========================================================
+
+@app.route("/")
 def home():
-    session.clear()
+
     if "messages" not in session:
         session["messages"] = []
 
-    charts = []
+    if "charts" not in session:
+        session["charts"] = []
 
-    if request.method == "POST":
+    return render_template(
+        "index.html",
+        messages=session["messages"],
+        charts=session["charts"]
+    )
 
-        # -------------------------
-        # CSV
-        # -------------------------
-        if "csv_file" in request.files:
-            file = request.files["csv_file"]
 
-            if file.filename != "":
-                stream = io.StringIO(
-                    file.stream.read().decode("UTF8"),
-                    newline=None
-                )
+# =========================================================
+# UPLOAD CSV
+# =========================================================
 
-                df = pd.read_csv(stream)
+@app.route("/upload", methods=["POST"])
+def upload():
 
-                load_dataframe(df)
+    if "csv_file" not in request.files:
 
-        # -------------------------
-        # API KEY
-        # -------------------------
-        key = request.form.get("api_key", "").strip()
+        return jsonify({
+            "success": False,
+            "message": "No CSV file selected."
+        })
+
+
+    file = request.files["csv_file"]
+
+
+    if file.filename == "":
+
+        return jsonify({
+            "success": False,
+            "message": "Please select a CSV file."
+        })
+
+
+    try:
+
+        stream = io.StringIO(
+            file.stream.read().decode("UTF8"),
+            newline=None
+        )
+
+        df = pd.read_csv(stream)
+
+
+        # Delete plots from previous dataset
+        clear_old_charts()
+
+
+        # Load new dataframe
+        load_dataframe(df)
+
+
+        # New dataset = new charts + new conversation
+        session["charts"] = []
+        session["messages"] = []
+
+
+        return jsonify({
+            "success": True,
+            "filename": file.filename,
+            "rows": len(df),
+            "columns": len(df.columns)
+        })
+
+
+    except Exception as e:
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        })
+
+
+# =========================================================
+# API KEY
+# =========================================================
+
+@app.route("/api-key", methods=["POST"])
+def set_api_key():
+
+    key = request.form.get("api_key", "").strip()
+
+
+    try:
 
         if key:
             client = load_api_key(key)
         else:
             client = load_api_key()
 
-        # -------------------------
-        # USER MESSAGE
-        # -------------------------
-        question = request.form.get("question", "").strip()
 
-        if question:
+        return jsonify({
+            "success": True,
+            "message": "API key configured."
+        })
 
-            # Save user message
-            messages = session["messages"]
 
-            messages.append({
-                "role": "user",
-                "content": question
-            })
+    except Exception as e:
 
-            # Ask agent
-            output = ask_agent(question, client)
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        })
 
-            # Save AI response
-            messages.append({
-                "role": "assistant",
-                "content": output
-            })
 
-            session["messages"] = messages
+# =========================================================
+# ASK AI
+# =========================================================
 
-            # Find generated charts
-            charts = [
-                "chart1.png",
-                "chart2.png",
-                "chart3.png"
-            ]
+@app.route("/ask", methods=["POST"])
+def ask():
 
-    return render_template(
-        "index.html",
-        messages=session["messages"],
-        charts=charts
-    )
+    question = request.form.get("question", "").strip()
 
+
+    if not question:
+
+        return jsonify({
+            "success": False,
+            "message": "Please enter a question."
+        })
+
+
+    # -----------------------------------------------------
+    # Save USER message
+    # -----------------------------------------------------
+
+    messages = session.get("messages", [])
+
+    messages.append({
+        "role": "user",
+        "content": question
+    })
+
+    session["messages"] = messages
+
+
+    try:
+
+        # -------------------------------------------------
+        # Load API client
+        # -------------------------------------------------
+
+        client = load_api_key()
+
+
+        # -------------------------------------------------
+        # Ask agent
+        # -------------------------------------------------
+
+        output = ask_agent(
+            question,
+            client
+        )
+
+
+        # -------------------------------------------------
+        # Save AI response
+        # -------------------------------------------------
+
+        messages = session.get("messages", [])
+
+        answer_html = markdown.markdown(
+            output["answer"],
+            extensions=["fenced_code", "tables"]
+        )
+
+        messages.append({
+            "role": "assistant",
+            "content": answer_html
+        })
+        session["messages"] = messages
+
+
+        # -------------------------------------------------
+        # Save charts
+        # -------------------------------------------------
+
+        charts = session.get("charts", [])
+
+        charts.extend(output["charts"])
+
+        session["charts"] = charts
+
+
+        return jsonify({
+            "success": True,
+            "answer": answer_html,
+            "charts": output["charts"]
+        })
+
+    except Exception as e:
+
+        return jsonify({
+            "success": False,
+            "message": str(e)
+        })
+
+
+# =========================================================
+# RUN
+# =========================================================
 
 if __name__ == "__main__":
-    app.run(debug=True,use_reloader=False)
+
+    app.run(
+        debug=True,
+        use_reloader=False
+    )

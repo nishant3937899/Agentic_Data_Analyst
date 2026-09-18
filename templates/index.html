@@ -1,105 +1,1073 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 
 <head>
-    <title>My Flask App</title>
+
+    <meta charset="UTF-8">
+
+    <meta
+        name="viewport"
+        content="width=device-width, initial-scale=1.0"
+    >
+
+    <title>Agentic Data Analyst</title>
+
+    <link
+        rel="stylesheet"
+        href="{{ url_for('static', filename='style.css') }}"
+    >
+
 </head>
+
 
 <body>
 
-    <h1>Agentic Data Analyst</h1>
 
-    <form method="POST" enctype="multipart/form-data">
+<div class="app">
 
-        <!-- CSV -->
-        <div>
-            <input
-                type="file"
-                name="csv_file"
-                accept=".csv"
-            >
 
-            <button type="submit">
-                Upload CSV
-            </button>
+    <!-- =================================================
+         HEADER
+    ================================================== -->
+
+    <header class="header">
+
+        <div class="logo">
+
+            <div class="logo-icon">
+                📊
+            </div>
+
+            <div>
+
+                <h1>
+                    Agentic Data Analyst
+                </h1>
+
+                <span>
+                    AI-powered data analysis
+                </span>
+
+            </div>
+
         </div>
 
-
-        <!-- API KEY -->
-        <div>
-            <input
-                type="text"
-                name="api_key"
-                placeholder="API key is optional"
-            >
-
-            <button type="submit">
-                Set API Key
-            </button>
-        </div>
+    </header>
 
 
-        <!-- QUESTION -->
-        <div>
-            <input
-                type="text"
-                name="question"
-                placeholder="Ask something about your data"
-            >
 
-            <button type="submit">
-                Ask
-            </button>
-        </div>
+    <!-- =================================================
+         MAIN
+    ================================================== -->
 
-    </form>
+    <main class="main">
 
 
-    <!-- CHAT -->
-    <div>
+        <!-- =================================================
+             LEFT PANEL
+        ================================================== -->
 
-        <h2>Conversation</h2>
+        <section class="analysis-panel">
+
+
+            <!-- ================= TOOLBAR ================= -->
+
+            <div class="toolbar">
+
+
+                <!-- CSV FORM -->
+
+                <form
+                    id="upload-form"
+                    class="upload-form"
+                >
+
+                    <input
+                        id="csv_file"
+                        class="file-input"
+                        type="file"
+                        name="csv_file"
+                        accept=".csv"
+                    >
+
+
+                    <label
+                        for="csv_file"
+                        class="upload-label"
+                    >
+
+                        📁 Choose CSV
+
+                    </label>
+
+
+                    <span
+                        id="file-name"
+                        class="file-name"
+                    >
+                        No file selected
+                    </span>
+
+
+                    <button
+                        id="load-button"
+                        class="btn"
+                        type="submit"
+                    >
+
+                        Load Data
+
+                    </button>
+
+
+                    <span
+                        id="upload-status"
+                        class="upload-status"
+                    ></span>
+
+
+                </form>
+
+
+
+                <!-- API KEY -->
+
+                <form
+                    id="api-form"
+                    class="api-form"
+                >
+
+                    <input
+                        class="api-input"
+                        type="password"
+                        name="api_key"
+                        placeholder="Gemini API key (optional)"
+                    >
+
+
+                    <button
+                        class="btn secondary-btn"
+                        type="submit"
+                    >
+
+                        Set Key
+
+                    </button>
+
+
+                    <span
+                        id="api-status"
+                        class="api-status"
+                    ></span>
+
+                </form>
+
+
+            </div>
+
+
+
+            <!-- =================================================
+                 CHART SECTION
+            ================================================== -->
+
+            <div class="chart-section">
+
+
+                <div class="section-title">
+                    Analysis & Visualizations
+                </div>
+
+
+                <div id="charts-container">
+
+
+                    {% if charts %}
+
+
+                        {% for chart in charts %}
+
+                            <div class="chart-card">
+
+                                <div class="chart-header">
+
+                                    <span class="chart-title">
+                                        {{ chart.chart_type }}
+                                    </span>
+
+                                    <span class="chart-number">
+                                        Plot {{ loop.index }}
+                                    </span>
+
+                                </div>
+
+
+                                <iframe
+                                    class="chart-frame"
+                                    src="{{ url_for(
+                                        'static',
+                                        filename=chart.chart_path
+                                    ) }}"
+                                >
+                                </iframe>
+
+                            </div>
+
+                        {% endfor %}
+
+
+                    {% else %}
+
+
+                        <div
+                            id="empty-charts"
+                            class="empty-state"
+                        >
+
+                            <div class="empty-icon">
+                                📈
+                            </div>
+
+                            <h3>
+                                No analysis yet
+                            </h3>
+
+                            <p>
+                                Upload a CSV file and ask the AI
+                                a question about your data.
+                                Your interactive visualizations
+                                will appear here.
+                            </p>
+
+                        </div>
+
+
+                    {% endif %}
+
+
+                </div>
+
+
+            </div>
+
+
+        </section>
+
+
+
+        <!-- =================================================
+             RIGHT AI PANEL
+        ================================================== -->
+
+        <aside class="ai-panel">
+
+
+            <!-- AI HEADER -->
+
+            <div class="ai-header">
+
+                <h2>
+                    AI Analyst
+                </h2>
+
+                <div class="ai-status">
+
+                    <span class="status-dot"></span>
+
+                    Ready to analyze
+
+                </div>
+
+            </div>
+
+
+<!-- =================================================
+     CHAT
+================================================== -->
+
+<div
+    id="chat-container"
+    class="chat-container"
+>
+
+    {% if messages %}
 
         {% for message in messages %}
 
             {% if message.role == "user" %}
 
-                <p>
-                    <strong>You:</strong>
-                    {{ message.content }}
-                </p>
+                <div class="message user-message">
+
+                    <div class="message-label">
+                        You
+                    </div>
+
+                    <div class="message-content">
+                        {{ message.content }}
+                    </div>
+
+                </div>
 
             {% else %}
 
-                <p>
-                    <strong>AI:</strong>
-                    {{ message.content }}
-                </p>
+                <div class="message ai-message">
+
+                    <div class="message-label">
+                        AI Analyst
+                    </div>
+
+                    <div class="message-content markdown-content">
+                        {{ message.content | safe }}
+                    </div>
+
+                </div>
 
             {% endif %}
 
         {% endfor %}
 
-    </div>
+    {% else %}
 
+        <div
+            id="empty-chat"
+            class="empty-state"
+        >
 
-    <!-- GRAPHS -->
-    <div>
-
-        <h2>Graphs</h2>
-
-        {% for chart in charts %}
-
-            <div>
-                <img
-                    src="{{ url_for('static', filename=chart) }}"
-                    
-                >
+            <div class="empty-icon">
+                🤖
             </div>
 
-        {% endfor %}
+            <h3>
+                Ask your data anything
+            </h3>
 
-    </div>
+            <p>
+                Try questions like:
+                "What are the most interesting
+                patterns in this dataset?"
+            </p>
+
+        </div>
+
+    {% endif %}
+
+</div>
+
+
+            <!-- =================================================
+                 QUESTION INPUT
+            ================================================== -->
+
+            <div class="question-area">
+
+
+                <form
+                    id="question-form"
+                    class="question-form"
+                >
+
+                    <input
+                        id="question-input"
+                        class="question-input"
+                        type="text"
+                        name="question"
+                        placeholder="Ask something about your data..."
+                        autocomplete="off"
+                    >
+
+
+                    <button
+                        id="ask-button"
+                        class="ask-button"
+                        type="submit"
+                    >
+
+                        ➤
+
+                    </button>
+
+                </form>
+
+
+            </div>
+
+
+        </aside>
+
+
+    </main>
+
+
+</div>
+
+
+
+<!-- =================================================
+     JAVASCRIPT
+================================================== -->
+
+<script>
+
+
+// ======================================================
+// CSV FILE SELECTION
+// ======================================================
+
+const csvInput = document.getElementById("csv_file");
+
+const fileName = document.getElementById("file-name");
+
+
+csvInput.addEventListener("change", function () {
+
+    if (this.files.length > 0) {
+
+        fileName.textContent =
+            this.files[0].name;
+
+    } else {
+
+        fileName.textContent =
+            "No file selected";
+
+    }
+
+});
+
+
+
+// ======================================================
+// CSV UPLOAD
+// ======================================================
+
+const uploadForm =
+    document.getElementById("upload-form");
+
+const uploadStatus =
+    document.getElementById("upload-status");
+
+
+uploadForm.addEventListener("submit", async function (event) {
+
+    event.preventDefault();
+
+
+    if (!csvInput.files.length) {
+
+        uploadStatus.textContent =
+            "Please choose a CSV file.";
+
+        uploadStatus.className =
+            "upload-status error";
+
+        return;
+
+    }
+
+
+    const formData =
+        new FormData(uploadForm);
+
+
+    const loadButton =
+        document.getElementById("load-button");
+
+
+    loadButton.disabled = true;
+
+    loadButton.textContent =
+        "Loading...";
+
+
+    try {
+
+        const response =
+            await fetch("/upload", {
+
+                method: "POST",
+
+                body: formData
+
+            });
+
+
+        const data =
+            await response.json();
+
+
+        if (data.success) {
+
+            uploadStatus.textContent =
+                "✓ Loaded";
+
+            uploadStatus.className =
+                "upload-status success";
+
+            loadButton.textContent =
+                "Loaded ✓";
+
+
+            // Clear old chat visually
+            document.getElementById(
+                "chat-container"
+            ).innerHTML = `
+
+                <div class="empty-state">
+
+                    <div class="empty-icon">
+                        🤖
+                    </div>
+
+                    <h3>
+                        Ask your data anything
+                    </h3>
+
+                    <p>
+                        Your new dataset is ready.
+                    </p>
+
+                </div>
+
+            `;
+
+
+            // Clear old charts visually
+            document.getElementById(
+                "charts-container"
+            ).innerHTML = `
+
+                <div class="empty-state">
+
+                    <div class="empty-icon">
+                        📈
+                    </div>
+
+                    <h3>
+                        No analysis yet
+                    </h3>
+
+                    <p>
+                        Ask the AI a question about your
+                        new dataset.
+                    </p>
+
+                </div>
+
+            `;
+
+
+        } else {
+
+            uploadStatus.textContent =
+                data.message;
+
+            uploadStatus.className =
+                "upload-status error";
+
+            loadButton.textContent =
+                "Load Data";
+
+        }
+
+
+    } catch (error) {
+
+        uploadStatus.textContent =
+            "Upload failed.";
+
+        uploadStatus.className =
+            "upload-status error";
+
+        loadButton.textContent =
+            "Load Data";
+
+    }
+
+
+    loadButton.disabled = false;
+
+});
+
+
+
+// ======================================================
+// API KEY
+// ======================================================
+
+const apiForm =
+    document.getElementById("api-form");
+
+
+const apiStatus =
+    document.getElementById("api-status");
+
+
+apiForm.addEventListener("submit", async function (event) {
+
+    event.preventDefault();
+
+
+    const formData =
+        new FormData(apiForm);
+
+
+    try {
+
+        const response =
+            await fetch("/api-key", {
+
+                method: "POST",
+
+                body: formData
+
+            });
+
+
+        const data =
+            await response.json();
+
+
+        if (data.success) {
+
+            apiStatus.textContent =
+                "✓ Set";
+
+            apiStatus.className =
+                "api-status success";
+
+        } else {
+
+            apiStatus.textContent =
+                "✕ Error";
+
+            apiStatus.className =
+                "api-status error";
+
+        }
+
+
+    } catch (error) {
+
+        apiStatus.textContent =
+            "✕ Error";
+
+        apiStatus.className =
+            "api-status error";
+
+    }
+
+});
+
+
+
+// ======================================================
+// CHAT
+// ======================================================
+
+const questionForm =
+    document.getElementById("question-form");
+
+
+const questionInput =
+    document.getElementById("question-input");
+
+
+const chatContainer =
+    document.getElementById("chat-container");
+
+
+const askButton =
+    document.getElementById("ask-button");
+
+
+
+questionForm.addEventListener("submit", async function (event) {
+
+    event.preventDefault();
+
+
+    const question =
+        questionInput.value.trim();
+
+
+    if (!question) {
+        return;
+    }
+
+
+    // ----------------------------------------------
+    // Remove empty state
+    // ----------------------------------------------
+
+    const emptyChat =
+        document.getElementById("empty-chat");
+
+    if (emptyChat) {
+        emptyChat.remove();
+    }
+
+
+    // ----------------------------------------------
+    // Add USER message immediately
+    // ----------------------------------------------
+
+    const userMessage =
+        document.createElement("div");
+
+    userMessage.className =
+        "message user-message";
+
+
+    userMessage.innerHTML = `
+
+        <div class="message-label">
+            You
+        </div>
+
+        <div class="message-content">
+            ${escapeHTML(question)}
+        </div>
+
+    `;
+
+
+    chatContainer.appendChild(
+        userMessage
+    );
+
+
+    scrollChatToBottom();
+
+
+
+    // ----------------------------------------------
+    // Add THINKING message
+    // ----------------------------------------------
+
+    const thinkingMessage =
+        document.createElement("div");
+
+    thinkingMessage.className =
+        "message ai-message thinking-message";
+
+
+    thinkingMessage.innerHTML = `
+
+        <div class="message-label">
+            AI Analyst
+        </div>
+
+        <div class="message-content thinking">
+            <span>Gemini is thinking</span>
+            <span class="dots">...</span>
+        </div>
+
+    `;
+
+
+    chatContainer.appendChild(
+        thinkingMessage
+    );
+
+
+    scrollChatToBottom();
+
+
+
+    // ----------------------------------------------
+    // Disable button
+    // ----------------------------------------------
+
+    questionInput.disabled = true;
+
+    askButton.disabled = true;
+
+
+
+    // ----------------------------------------------
+    // Send to Flask
+    // ----------------------------------------------
+
+    const formData =
+        new FormData();
+
+
+    formData.append(
+        "question",
+        question
+    );
+
+
+    try {
+
+        const response =
+            await fetch("/ask", {
+
+                method: "POST",
+
+                body: formData
+
+            });
+
+
+        const data =
+            await response.json();
+
+
+
+        // ------------------------------------------
+        // Remove thinking message
+        // ------------------------------------------
+
+        thinkingMessage.remove();
+
+
+
+        if (data.success) {
+
+
+            // --------------------------------------
+            // Add AI answer
+            // --------------------------------------
+
+            const aiMessage =
+                document.createElement("div");
+
+            aiMessage.className =
+                "message ai-message";
+
+            aiMessage.innerHTML = `
+
+                <div class="message-label">
+                    AI Analyst
+                </div>
+
+                <div class="message-content markdown-content">
+                    ${data.answer}
+                </div>
+
+            `;
+
+
+            chatContainer.appendChild(
+                aiMessage
+            );
+
+
+
+            // --------------------------------------
+            // Add charts
+            // --------------------------------------
+
+            addCharts(
+                data.charts
+            );
+
+
+        } else {
+
+
+            const errorMessage =
+                document.createElement("div");
+
+            errorMessage.className =
+                "message ai-message";
+
+
+            errorMessage.innerHTML = `
+
+                <div class="message-label">
+                    Error
+                </div>
+
+                <div class="message-content">
+                    ${escapeHTML(data.message)}
+                </div>
+
+            `;
+
+
+            chatContainer.appendChild(
+                errorMessage
+            );
+
+        }
+
+
+    } catch (error) {
+
+
+        thinkingMessage.remove();
+
+
+        const errorMessage =
+            document.createElement("div");
+
+        errorMessage.className =
+            "message ai-message";
+
+
+        errorMessage.innerHTML = `
+
+            <div class="message-label">
+                Error
+            </div>
+
+            <div class="message-content">
+                Something went wrong while contacting the AI.
+            </div>
+
+        `;
+
+
+        chatContainer.appendChild(
+            errorMessage
+        );
+
+    }
+
+
+    // ----------------------------------------------
+    // Re-enable input
+    // ----------------------------------------------
+
+    questionInput.disabled = false;
+
+    askButton.disabled = false;
+
+    questionInput.focus();
+
+
+    scrollChatToBottom();
+
+});
+
+
+
+// ======================================================
+// ADD CHARTS
+// ======================================================
+
+function addCharts(charts) {
+
+
+    if (!charts || charts.length === 0) {
+        return;
+    }
+
+
+    const chartsContainer =
+        document.getElementById(
+            "charts-container"
+        );
+
+
+    // Remove empty state
+    chartsContainer
+        .querySelectorAll(".empty-state")
+        .forEach(element => {
+            element.remove();
+        });
+
+
+    charts.forEach(function (chart) {
+
+
+        const chartCard =
+            document.createElement("div");
+
+        chartCard.className =
+            "chart-card";
+
+
+        chartCard.innerHTML = `
+
+            <div class="chart-header">
+
+                <span class="chart-title">
+                    ${escapeHTML(chart.chart_type)}
+                </span>
+
+                <span class="chart-number">
+                    New Plot
+                </span>
+
+            </div>
+
+
+            <iframe
+                class="chart-frame"
+                src="/static/${escapeAttribute(chart.chart_path)}"
+            >
+            </iframe>
+
+        `;
+
+
+        chartsContainer.appendChild(
+            chartCard
+        );
+
+    });
+
+
+    // Scroll plots to newest plot
+    const chartSection =
+        document.querySelector(
+            ".chart-section"
+        );
+
+
+    chartSection.scrollTop =
+        chartSection.scrollHeight;
+
+}
+
+
+
+// ======================================================
+// CHAT SCROLL
+// ======================================================
+
+function scrollChatToBottom() {
+
+    chatContainer.scrollTop =
+        chatContainer.scrollHeight;
+
+}
+
+
+
+// ======================================================
+// BASIC HTML ESCAPING
+// ======================================================
+
+function escapeHTML(text) {
+
+    const div =
+        document.createElement("div");
+
+    div.textContent =
+        text;
+
+    return div.innerHTML;
+
+}
+
+
+function escapeAttribute(text) {
+
+    return String(text)
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+
+}
+
+
+</script>
+
 
 </body>
 

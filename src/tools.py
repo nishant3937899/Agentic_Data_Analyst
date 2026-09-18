@@ -4,7 +4,9 @@ import matplotlib.pyplot as plt
 import numpy as np
 import uuid
 from .database import conn, RESULTS
-
+import os
+import plotly.express as px
+import plotly.graph_objects as go
 
 #Tool 1 
 def lookup_schema():
@@ -145,7 +147,7 @@ DEFAULT_PALETTE = [
     "#BAB0AC"
 ]
 
-#Tool 3
+#tool3
 def make_chart(
     result_id,
     chart_type,
@@ -157,30 +159,21 @@ def make_chart(
     colors=None,
     palette=None,
     alpha=0.8,
-    figsize=(10, 6),
-    grid=True,
-    grid_axis="both",
-    legend=True,
+    height=500,
+    width=900,
     rotation=0,
-    font_size=10,
-    title_size=14,
-    label_size=11,
-    marker="o",
+    marker="circle",
     linewidth=2,
     annotate=False,
-    colormap="viridis",
+    colormap="Viridis",
     bins=20,
     rolling_window=7,
-    bubble_scale=100,
-    number=0,
+    bubble_scale=20,
+    size=None,
     **kwargs
 ):
 
-    import uuid
-    import numpy as np
-    import pandas as pd
-    import matplotlib.pyplot as plt
-    import seaborn as sns
+    
 
     # ============================================================
     # 1. VALIDATE RESULT
@@ -200,7 +193,6 @@ def make_chart(
 
     chart_type = str(chart_type).lower().strip()
 
-    # Allow y="avg_math" OR y=["avg_math", "avg_reading"]
     if isinstance(y, str):
         y_columns = [y]
     elif isinstance(y, (list, tuple)):
@@ -224,6 +216,12 @@ def make_chart(
             f"Available columns: {list(df.columns)}"
         )
 
+    if size and size not in df.columns:
+        raise ValueError(
+            f"size column '{size}' does not exist. "
+            f"Available columns: {list(df.columns)}"
+        )
+
     for col in y_columns:
         if col not in df.columns:
             raise ValueError(
@@ -231,407 +229,318 @@ def make_chart(
                 f"Available columns: {list(df.columns)}"
             )
 
-    # ============================================================
-    # 4. FIX GEMINI'S COMMON HUE ERROR
-    # ============================================================
-
-    # x == hue creates a meaningless grouping and can break pivot().
-    # Simply ignore hue in this situation.
+    # Gemini sometimes sends x == hue.
     if hue == x:
         hue = None
 
     # ============================================================
-    # 5. COLOR / PALETTE HELPER
+    # 4. CREATE CHART DIRECTORY
     # ============================================================
 
-    def get_colors(n=10):
-
-        # Explicit colors take priority
-        if colors:
-            if isinstance(colors, str):
-                return [colors] * n
-
-            if isinstance(colors, (list, tuple)):
-                if len(colors) >= n:
-                    return list(colors)
-
-                # Repeat colors if fewer were supplied
-                repeated = []
-                for i in range(n):
-                    repeated.append(colors[i % len(colors)])
-                return repeated
-
-        # Single explicit color
-        if color:
-            return [color] * n
-
-        # User-selected palette
-        if palette:
-            try:
-                return sns.color_palette(palette, n).as_hex()
-            except Exception:
-                try:
-                    cmap = plt.get_cmap(palette)
-                    return [
-                        cmap(i / max(n - 1, 1))
-                        for i in range(n)
-                    ]
-                except Exception:
-                    # Never crash because of a palette name
-                    return sns.color_palette("deep", n).as_hex()
-
-        # Default palette
-        return sns.color_palette("deep", n).as_hex()
+    os.makedirs("charts", exist_ok=True)
 
     # ============================================================
-    # 6. CREATE FIGURE
+    # 5. UNIQUE CHART ID
     # ============================================================
 
-    fig, ax = plt.subplots(figsize=figsize)
+    chart_id = str(uuid.uuid4())
+
+    chart_filename = f"{chart_id}.html"
+    chart_path = os.path.join("charts", chart_filename)
 
     # ============================================================
-    # 7. BAR
+    # 6. COLOR SETTINGS
     # ============================================================
+
+    color_sequence = None
+
+    if colors:
+        if isinstance(colors, str):
+            color_sequence = [colors]
+        elif isinstance(colors, (list, tuple)):
+            color_sequence = list(colors)
+
+    elif palette:
+        color_sequence = px.colors.qualitative.Plotly
+
+    # ============================================================
+    # 7. CREATE FIGURE
+    # ============================================================
+
+    fig = None
+
+    # ------------------------------------------------------------
+    # BAR
+    # ------------------------------------------------------------
 
     if chart_type == "bar":
 
         if not x or not y_columns:
             raise ValueError("bar requires x and y.")
 
-        grouped = df.groupby(x)[y_columns[0]].mean()
-
-        bars = ax.bar(
-            grouped.index.astype(str),
-            grouped.values,
-            color=get_colors(len(grouped)),
-            alpha=alpha
+        grouped = (
+            df.groupby(x, as_index=False)[y_columns[0]]
+            .mean()
         )
 
-        if annotate:
-            for bar in bars:
-                height = bar.get_height()
-                ax.annotate(
-                    f"{height:.2f}",
-                    xy=(
-                        bar.get_x() + bar.get_width() / 2,
-                        height
-                    ),
-                    xytext=(0, 5),
-                    textcoords="offset points",
-                    ha="center",
-                    fontsize=font_size
-                )
+        fig = px.bar(
+            grouped,
+            x=x,
+            y=y_columns[0],
+            title=title,
+            color_discrete_sequence=color_sequence
+        )
 
-    # ============================================================
-    # 8. HORIZONTAL BAR
-    # ============================================================
+    # ------------------------------------------------------------
+    # HORIZONTAL BAR
+    # ------------------------------------------------------------
 
     elif chart_type == "horizontal_bar":
 
         if not x or not y_columns:
             raise ValueError("horizontal_bar requires x and y.")
 
-        grouped = df.groupby(x)[y_columns[0]].mean()
-
-        ax.barh(
-            grouped.index.astype(str),
-            grouped.values,
-            color=get_colors(len(grouped)),
-            alpha=alpha
+        grouped = (
+            df.groupby(x, as_index=False)[y_columns[0]]
+            .mean()
         )
 
-    # ============================================================
-    # 9. LINE
-    # ============================================================
+        fig = px.bar(
+            grouped,
+            x=y_columns[0],
+            y=x,
+            orientation="h",
+            title=title,
+            color_discrete_sequence=color_sequence
+        )
+
+    # ------------------------------------------------------------
+    # LINE
+    # ------------------------------------------------------------
 
     elif chart_type == "line":
 
         if not x or not y_columns:
             raise ValueError("line requires x and y.")
 
-        for i, col in enumerate(y_columns):
+        grouped = (
+            df.groupby(x, as_index=False)[y_columns]
+            .mean()
+        )
 
-            grouped = df.groupby(x)[col].mean()
+        fig = px.line(
+            grouped,
+            x=x,
+            y=y_columns,
+            title=title,
+            markers=True,
+            color_discrete_sequence=color_sequence
+        )
 
-            ax.plot(
-                grouped.index,
-                grouped.values,
-                marker=marker,
-                linewidth=linewidth,
-                alpha=alpha,
-                label=col
-            )
-
-        if len(y_columns) > 1 and legend:
-            ax.legend()
-
-    # ============================================================
-    # 10. AREA
-    # ============================================================
+    # ------------------------------------------------------------
+    # AREA
+    # ------------------------------------------------------------
 
     elif chart_type == "area":
 
         if not x or not y_columns:
             raise ValueError("area requires x and y.")
 
-        grouped = df.groupby(x)[y_columns].mean()
-
-        ax.stackplot(
-            grouped.index,
-            *[
-                grouped[col].values
-                for col in y_columns
-            ],
-            labels=y_columns,
-            alpha=alpha
+        grouped = (
+            df.groupby(x, as_index=False)[y_columns]
+            .mean()
         )
 
-        if legend:
-            ax.legend()
+        fig = px.area(
+            grouped,
+            x=x,
+            y=y_columns,
+            title=title,
+            color_discrete_sequence=color_sequence
+        )
 
-    # ============================================================
-    # 11. SCATTER
-    # ============================================================
+    # ------------------------------------------------------------
+    # SCATTER
+    # ------------------------------------------------------------
 
     elif chart_type == "scatter":
 
         if not x or not y_columns:
             raise ValueError("scatter requires x and y.")
 
-        if hue:
+        fig = px.scatter(
+            df,
+            x=x,
+            y=y_columns[0],
+            color=hue,
+            title=title,
+            color_discrete_sequence=color_sequence
+        )
 
-            categories = df[hue].dropna().unique()
-            palette_colors = get_colors(len(categories))
-
-            for category, c in zip(categories, palette_colors):
-
-                subset = df[df[hue] == category]
-
-                ax.scatter(
-                    subset[x],
-                    subset[y_columns[0]],
-                    label=str(category),
-                    color=c,
-                    alpha=alpha
-                )
-
-            if legend:
-                ax.legend()
-
-        else:
-
-            ax.scatter(
-                df[x],
-                df[y_columns[0]],
-                color=get_colors(1)[0],
-                alpha=alpha
-            )
-
-    # ============================================================
-    # 12. HISTOGRAM
-    # ============================================================
+    # ------------------------------------------------------------
+    # HISTOGRAM
+    # ------------------------------------------------------------
 
     elif chart_type == "histogram":
 
         if not y_columns:
             raise ValueError("histogram requires y.")
 
-        ax.hist(
-            df[y_columns[0]].dropna(),
-            bins=bins,
-            color=get_colors(1)[0],
-            alpha=alpha
+        fig = px.histogram(
+            df,
+            x=y_columns[0],
+            color=hue,
+            nbins=bins,
+            title=title,
+            color_discrete_sequence=color_sequence
         )
 
-    # ============================================================
-    # 13. BOX
-    # ============================================================
+    # ------------------------------------------------------------
+    # BOX
+    # ------------------------------------------------------------
 
     elif chart_type == "box":
 
         if not y_columns:
             raise ValueError("box requires y.")
 
-        sns.boxplot(
-            data=df,
+        fig = px.box(
+            df,
+            x=x,
             y=y_columns[0],
-            color=get_colors(1)[0],
-            ax=ax
+            color=hue,
+            title=title,
+            color_discrete_sequence=color_sequence
         )
 
-    # ============================================================
-    # 14. VIOLIN
-    # ============================================================
+    # ------------------------------------------------------------
+    # VIOLIN
+    # ------------------------------------------------------------
 
     elif chart_type == "violin":
 
         if not y_columns:
             raise ValueError("violin requires y.")
 
-        if x:
+        fig = px.violin(
+            df,
+            x=x,
+            y=y_columns[0],
+            color=hue,
+            box=True,
+            points=False,
+            title=title,
+            color_discrete_sequence=color_sequence
+        )
 
-            sns.violinplot(
-                data=df,
-                x=x,
-                y=y_columns[0],
-                palette=get_colors(
-                    df[x].nunique()
-                ),
-                ax=ax
-            )
-
-        else:
-
-            sns.violinplot(
-                data=df,
-                y=y_columns[0],
-                color=get_colors(1)[0],
-                ax=ax
-            )
-
-    # ============================================================
-    # 15. PIE
-    # ============================================================
+    # ------------------------------------------------------------
+    # PIE
+    # ------------------------------------------------------------
 
     elif chart_type == "pie":
 
         if not x or not y_columns:
             raise ValueError("pie requires x and y.")
 
-        grouped = df.groupby(x)[y_columns[0]].sum()
-
-        ax.pie(
-            grouped.values,
-            labels=grouped.index.astype(str),
-            colors=get_colors(len(grouped)),
-            autopct="%1.1f%%",
-            startangle=90
+        grouped = (
+            df.groupby(x, as_index=False)[y_columns[0]]
+            .sum()
         )
 
-    # ============================================================
-    # 16. DONUT
-    # ============================================================
+        fig = px.pie(
+            grouped,
+            names=x,
+            values=y_columns[0],
+            title=title,
+            color_discrete_sequence=color_sequence
+        )
+
+    # ------------------------------------------------------------
+    # DONUT
+    # ------------------------------------------------------------
 
     elif chart_type == "donut":
 
         if not x or not y_columns:
             raise ValueError("donut requires x and y.")
 
-        grouped = df.groupby(x)[y_columns[0]].sum()
-
-        ax.pie(
-            grouped.values,
-            labels=grouped.index.astype(str),
-            colors=get_colors(len(grouped)),
-            autopct="%1.1f%%",
-            startangle=90,
-            wedgeprops={"width": 0.4}
+        grouped = (
+            df.groupby(x, as_index=False)[y_columns[0]]
+            .sum()
         )
 
-    # ============================================================
-    # 17. GROUPED BAR
-    # ============================================================
+        fig = px.pie(
+            grouped,
+            names=x,
+            values=y_columns[0],
+            hole=0.45,
+            title=title,
+            color_discrete_sequence=color_sequence
+        )
+
+    # ------------------------------------------------------------
+    # GROUPED BAR
+    # ------------------------------------------------------------
 
     elif chart_type == "grouped_bar":
 
         if not x or not y_columns:
             raise ValueError("grouped_bar requires x and y.")
 
-        # --------------------------------------------------------
-        # CASE 1:
-        # x = category
-        # y = one metric
-        # hue = None
-        #
-        # Example:
-        # test_preparation_course | avg_math
-        # --------------------------------------------------------
-
-        if len(y_columns) == 1 and not hue:
+        # x + one y + hue
+        if hue:
 
             grouped = (
-                df.groupby(x)[y_columns[0]]
+                df.groupby([x, hue], as_index=False)[y_columns[0]]
                 .mean()
             )
 
-            bars = ax.bar(
-                grouped.index.astype(str),
-                grouped.values,
-                color=get_colors(len(grouped)),
-                alpha=alpha
+            fig = px.bar(
+                grouped,
+                x=x,
+                y=y_columns[0],
+                color=hue,
+                barmode="group",
+                title=title,
+                color_discrete_sequence=color_sequence
             )
 
-            if annotate:
-                for bar in bars:
-
-                    height = bar.get_height()
-
-                    ax.annotate(
-                        f"{height:.2f}",
-                        xy=(
-                            bar.get_x() + bar.get_width() / 2,
-                            height
-                        ),
-                        xytext=(0, 5),
-                        textcoords="offset points",
-                        ha="center",
-                        fontsize=font_size
-                    )
-
-        # --------------------------------------------------------
-        # CASE 2:
-        # multiple y metrics
-        #
-        # x = course
-        # y = [math, reading, writing]
-        # --------------------------------------------------------
-
-        elif len(y_columns) > 1 and not hue:
+        # x + multiple y
+        elif len(y_columns) > 1:
 
             grouped = (
-                df.groupby(x)[y_columns]
+                df.groupby(x, as_index=False)[y_columns]
                 .mean()
             )
 
-            grouped.plot(
-                kind="bar",
-                ax=ax,
-                alpha=alpha
+            fig = px.bar(
+                grouped,
+                x=x,
+                y=y_columns,
+                barmode="group",
+                title=title,
+                color_discrete_sequence=color_sequence
             )
 
-            if legend:
-                ax.legend()
-
-        # --------------------------------------------------------
-        # CASE 3:
-        # x + hue
-        #
-        # Example:
-        # x = gender
-        # hue = test_preparation_course
-        # y = avg_math
-        # --------------------------------------------------------
-
+        # x + one y
         else:
 
             grouped = (
-                df.groupby([x, hue])[y_columns[0]]
+                df.groupby(x, as_index=False)[y_columns[0]]
                 .mean()
-                .unstack(fill_value=0)
             )
 
-            grouped.plot(
-                kind="bar",
-                ax=ax,
-                alpha=alpha
+            fig = px.bar(
+                grouped,
+                x=x,
+                y=y_columns[0],
+                title=title,
+                color_discrete_sequence=color_sequence
             )
 
-            if legend:
-                ax.legend(title=hue)
-
-    # ============================================================
-    # 18. STACKED BAR
-    # ============================================================
+    # ------------------------------------------------------------
+    # STACKED BAR
+    # ------------------------------------------------------------
 
     elif chart_type == "stacked_bar":
 
@@ -639,27 +548,26 @@ def make_chart(
             raise ValueError("stacked_bar requires x and y.")
 
         grouped = (
-            df.groupby(x)[y_columns]
+            df.groupby(x, as_index=False)[y_columns]
             .mean()
         )
 
-        grouped.plot(
-            kind="bar",
-            stacked=True,
-            ax=ax,
-            alpha=alpha
+        fig = px.bar(
+            grouped,
+            x=x,
+            y=y_columns,
+            barmode="stack",
+            title=title,
+            color_discrete_sequence=color_sequence
         )
 
-        if legend:
-            ax.legend()
-
-    # ============================================================
-    # 19. HEATMAP
-    # ============================================================
+    # ------------------------------------------------------------
+    # HEATMAP
+    # ------------------------------------------------------------
 
     elif chart_type == "heatmap":
 
-        if x and y_columns and len(y_columns) >= 1:
+        if x and y_columns:
 
             pivot = pd.pivot_table(
                 df,
@@ -672,40 +580,38 @@ def make_chart(
             if isinstance(pivot, pd.Series):
                 pivot = pivot.to_frame()
 
-            sns.heatmap(
+            fig = px.imshow(
                 pivot,
-                annot=annotate,
-                cmap=colormap,
-                ax=ax
+                text_auto=annotate,
+                aspect="auto",
+                color_continuous_scale=colormap,
+                title=title
             )
 
         else:
 
-            numeric_df = df.select_dtypes(
-                include=np.number
-            )
+            numeric_df = df.select_dtypes(include=np.number)
 
             if numeric_df.empty:
                 raise ValueError(
                     "heatmap requires numeric data."
                 )
 
-            sns.heatmap(
+            fig = px.imshow(
                 numeric_df.corr(),
-                annot=annotate,
-                cmap=colormap,
-                ax=ax
+                text_auto=annotate,
+                aspect="auto",
+                color_continuous_scale=colormap,
+                title=title
             )
 
-    # ============================================================
-    # 20. CORRELATION HEATMAP
-    # ============================================================
+    # ------------------------------------------------------------
+    # CORRELATION HEATMAP
+    # ------------------------------------------------------------
 
     elif chart_type == "correlation_heatmap":
 
-        numeric_df = df.select_dtypes(
-            include=np.number
-        )
+        numeric_df = df.select_dtypes(include=np.number)
 
         if numeric_df.shape[1] < 2:
             raise ValueError(
@@ -715,51 +621,53 @@ def make_chart(
 
         correlation = numeric_df.corr()
 
-        sns.heatmap(
+        fig = px.imshow(
             correlation,
-            annot=True,
-            cmap=colormap,
-            center=0,
-            ax=ax
+            text_auto=True,
+            aspect="auto",
+            color_continuous_scale=colormap,
+            zmin=-1,
+            zmax=1,
+            title=title
         )
 
-    # ============================================================
-    # 21. DENSITY
-    # ============================================================
+    # ------------------------------------------------------------
+    # DENSITY
+    # ------------------------------------------------------------
 
     elif chart_type == "density":
 
         if not y_columns:
             raise ValueError("density requires y.")
 
-        sns.kdeplot(
-            data=df,
+        fig = px.density_contour(
+            df,
             x=y_columns[0],
-            fill=True,
-            alpha=alpha,
-            color=get_colors(1)[0],
-            ax=ax
+            color=hue,
+            title=title,
+            color_discrete_sequence=color_sequence
         )
 
-    # ============================================================
-    # 22. ECDF
-    # ============================================================
+    # ------------------------------------------------------------
+    # ECDF
+    # ------------------------------------------------------------
 
     elif chart_type == "ecdf":
 
         if not y_columns:
             raise ValueError("ecdf requires y.")
 
-        sns.ecdfplot(
-            data=df,
+        fig = px.ecdf(
+            df,
             x=y_columns[0],
-            color=get_colors(1)[0],
-            ax=ax
+            color=hue,
+            title=title,
+            color_discrete_sequence=color_sequence
         )
 
-    # ============================================================
-    # 23. PARETO
-    # ============================================================
+    # ------------------------------------------------------------
+    # PARETO
+    # ------------------------------------------------------------
 
     elif chart_type == "pareto":
 
@@ -773,38 +681,38 @@ def make_chart(
         )
 
         cumulative = (
-            grouped.cumsum()
-            / grouped.sum()
-            * 100
+            grouped.cumsum() / grouped.sum() * 100
         )
 
-        ax.bar(
-            grouped.index.astype(str),
-            grouped.values,
-            color=get_colors(len(grouped)),
-            alpha=alpha
+        fig = go.Figure()
+
+        fig.add_bar(
+            x=grouped.index.astype(str),
+            y=grouped.values,
+            name=y_columns[0]
         )
 
-        ax2 = ax.twinx()
-
-        ax2.plot(
-            range(len(cumulative)),
-            cumulative.values,
-            marker=marker,
-            linewidth=linewidth
+        fig.add_scatter(
+            x=grouped.index.astype(str),
+            y=cumulative.values,
+            name="Cumulative %",
+            yaxis="y2",
+            mode="lines+markers"
         )
 
-        ax2.set_ylabel("Cumulative Percentage (%)")
-
-        ax2.axhline(
-            80,
-            linestyle="--",
-            linewidth=1
+        fig.update_layout(
+            title=title,
+            yaxis2=dict(
+                title="Cumulative Percentage (%)",
+                overlaying="y",
+                side="right",
+                range=[0, 100]
+            )
         )
 
-    # ============================================================
-    # 24. ROLLING LINE
-    # ============================================================
+    # ------------------------------------------------------------
+    # ROLLING LINE
+    # ------------------------------------------------------------
 
     elif chart_type == "rolling_line":
 
@@ -824,79 +732,66 @@ def make_chart(
             min_periods=1
         ).mean()
 
-        ax.plot(
-            grouped.index,
-            grouped.values,
-            alpha=0.35,
-            label="Original"
+        fig = go.Figure()
+
+        fig.add_scatter(
+            x=grouped.index,
+            y=grouped.values,
+            mode="lines",
+            name="Original"
         )
 
-        ax.plot(
-            rolling.index,
-            rolling.values,
-            linewidth=linewidth,
-            label=f"Rolling {rolling_window}"
+        fig.add_scatter(
+            x=rolling.index,
+            y=rolling.values,
+            mode="lines",
+            name=f"Rolling {rolling_window}"
         )
 
-        if legend:
-            ax.legend()
+        fig.update_layout(title=title)
 
-    # ============================================================
-    # 25. HEXBIN
-    # ============================================================
+    # ------------------------------------------------------------
+    # HEXBIN
+    # ------------------------------------------------------------
 
     elif chart_type == "hexbin":
 
         if not x or not y_columns:
             raise ValueError("hexbin requires x and y.")
 
-        hb = ax.hexbin(
-            df[x],
-            df[y_columns[0]],
-            gridsize=30,
-            cmap=colormap,
-            mincnt=1
+        fig = px.density_heatmap(
+            df,
+            x=x,
+            y=y_columns[0],
+            nbinsx=30,
+            nbinsy=30,
+            title=title,
+            color_continuous_scale=colormap
         )
 
-        fig.colorbar(hb, ax=ax)
-
-    # ============================================================
-    # 26. BUBBLE
-    # ============================================================
+    # ------------------------------------------------------------
+    # BUBBLE
+    # ------------------------------------------------------------
 
     elif chart_type == "bubble":
 
         if not x or not y_columns:
             raise ValueError("bubble requires x and y.")
 
-        # Use first numeric column available as bubble size
-        numeric_columns = df.select_dtypes(
-            include=np.number
-        ).columns.tolist()
-
-        size_column = kwargs.get("size")
-
-        if size_column and size_column in df.columns:
-            sizes = df[size_column].abs()
-        elif len(numeric_columns) >= 3:
-            sizes = df[numeric_columns[2]].abs()
-        else:
-            sizes = pd.Series(
-                1,
-                index=df.index
-            )
-
-        ax.scatter(
-            df[x],
-            df[y_columns[0]],
-            s=sizes * bubble_scale,
-            alpha=alpha,
-            color=get_colors(1)[0]
+        fig = px.scatter(
+            df,
+            x=x,
+            y=y_columns[0],
+            size=size,
+            color=hue,
+            size_max=bubble_scale,
+            title=title,
+            color_discrete_sequence=color_sequence
         )
 
-    # ============================================================
-    # 27. WATERFALL
-    # ============================================================
+    # ------------------------------------------------------------
+    # WATERFALL
+    # ------------------------------------------------------------
 
     elif chart_type == "waterfall":
 
@@ -908,31 +803,17 @@ def make_chart(
             .sum()
         )
 
-        values = grouped.values
-        cumulative = np.cumsum(
-            np.insert(values, 0, 0)
+        fig = go.Figure(
+            go.Waterfall(
+                x=grouped.index.astype(str),
+                y=grouped.values
+            )
         )
 
-        starts = cumulative[:-1]
-
-        ax.bar(
-            range(len(values)),
-            values,
-            bottom=starts,
-            alpha=alpha,
-            color=get_colors(len(values))
-        )
-
-        ax.set_xticks(
-            range(len(values))
-        )
-
-        ax.set_xticklabels(
-            grouped.index.astype(str)
-        )
+        fig.update_layout(title=title)
 
     # ============================================================
-    # 28. UNKNOWN CHART
+    # 8. UNKNOWN CHART
     # ============================================================
 
     else:
@@ -967,69 +848,72 @@ def make_chart(
         )
 
     # ============================================================
-    # 29. COMMON STYLING
+    # 9. COMMON PLOTLY STYLING
     # ============================================================
 
-    if title:
-        ax.set_title(
-            title,
-            fontsize=title_size
-        )
-
-    if x:
-        ax.set_xlabel(
-            x,
-            fontsize=label_size
-        )
-
-    if y_columns:
-        ax.set_ylabel(
-            ", ".join(y_columns),
-            fontsize=label_size
-        )
-
-    ax.tick_params(
-        axis="both",
-        labelsize=font_size
+    fig.update_layout(
+        height=height,
+        width=width,
+        title_font_size=16,
+        hovermode="closest"
     )
 
     if rotation:
-        plt.xticks(
-            rotation=rotation
-        )
-
-    # Grid
-    if grid:
-        ax.grid(
-            True,
-            axis=grid_axis,
-            alpha=0.3
-        )
-    else:
-        ax.grid(False)
-
-    plt.tight_layout()
+        fig.update_xaxes(tickangle=rotation)
 
     # ============================================================
-    # 30. SAVE CHART
+    # 10. SAVE INTERACTIVE HTML
     # ============================================================
 
-    chart_path = f"charts/chart{number}.png"
+    chart_id = uuid.uuid4().hex
 
-    plt.savefig(
+    os.makedirs("static/charts", exist_ok=True)
+
+    chart_filename = f"{chart_id}.html"
+    chart_path = os.path.join("static", "charts", chart_filename)
+
+    fig.update_layout(
+    paper_bgcolor="#111827",
+    plot_bgcolor="#111827",
+    font=dict(
+        color="#E5E7EB"
+    )
+    )
+    fig.write_html(
         chart_path,
-        dpi=150,
-        bbox_inches="tight"
+        include_plotlyjs="cdn",
+        full_html=True
     )
 
-    plt.close(fig)
+    with open(chart_path, "r", encoding="utf-8") as f:
+        html = f.read()
+
+    html = html.replace(
+        "<body>",
+        """
+        <body style="
+            margin: 0;
+            padding: 0;
+            background: #111827;
+            overflow: hidden;
+        ">
+        """
+    )
+
+    with open(chart_path, "w", encoding="utf-8") as f:
+        f.write(html)
+    # ============================================================
+    # 11. RETURN INFORMATION
+    # ============================================================
 
     return {
         "status": "success",
-        "message": "Chart created successfully.",
+        "message": "Interactive Plotly chart created successfully.",
+        "chart_id": chart_id,
         "chart_type": chart_type,
         "result_id": result_id,
-        "chart_path": chart_path
+        "chart_path": chart_path,
+        "chart_path": f"charts/{chart_filename}"
     }
 
 #tool 4
