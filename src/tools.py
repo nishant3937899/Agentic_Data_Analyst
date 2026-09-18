@@ -1014,7 +1014,7 @@ def make_chart(
     # 30. SAVE CHART
     # ============================================================
 
-    chart_path = f"chart{number}.png"
+    chart_path = f"charts/chart{number}.png"
 
     plt.savefig(
         chart_path,

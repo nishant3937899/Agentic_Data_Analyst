@@ -1,0 +1,106 @@
+<!DOCTYPE html>
+<html>
+
+<head>
+    <title>My Flask App</title>
+</head>
+
+<body>
+
+    <h1>Agentic Data Analyst</h1>
+
+    <form method="POST" enctype="multipart/form-data">
+
+        <!-- CSV -->
+        <div>
+            <input
+                type="file"
+                name="csv_file"
+                accept=".csv"
+            >
+
+            <button type="submit">
+                Upload CSV
+            </button>
+        </div>
+
+
+        <!-- API KEY -->
+        <div>
+            <input
+                type="text"
+                name="api_key"
+                placeholder="API key is optional"
+            >
+
+            <button type="submit">
+                Set API Key
+            </button>
+        </div>
+
+
+        <!-- QUESTION -->
+        <div>
+            <input
+                type="text"
+                name="question"
+                placeholder="Ask something about your data"
+            >
+
+            <button type="submit">
+                Ask
+            </button>
+        </div>
+
+    </form>
+
+
+    <!-- CHAT -->
+    <div>
+
+        <h2>Conversation</h2>
+
+        {% for message in messages %}
+
+            {% if message.role == "user" %}
+
+                <p>
+                    <strong>You:</strong>
+                    {{ message.content }}
+                </p>
+
+            {% else %}
+
+                <p>
+                    <strong>AI:</strong>
+                    {{ message.content }}
+                </p>
+
+            {% endif %}
+
+        {% endfor %}
+
+    </div>
+
+
+    <!-- GRAPHS -->
+    <div>
+
+        <h2>Graphs</h2>
+
+        {% for chart in charts %}
+
+            <div>
+                <img
+                    src="{{ url_for('static', filename=chart) }}"
+                    
+                >
+            </div>
+
+        {% endfor %}
+
+    </div>
+
+</body>
+
+</html>

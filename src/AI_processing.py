@@ -2,14 +2,14 @@ from google import genai
 from google.genai import types
 from .ai_tools import gemini_tools,execute_tool
 
-import os
-
-API_KEY = os.getenv("GEMINI_API_KEY")
-client = genai.Client(api_key=API_KEY)
-
+def load_api_key(api_ky=None):
+    if api_ky:
+        client = genai.Client(api_key=api_ky)
+        return client
+    return genai.Client(api_key='ky')
 
 #gemini here
-def ask_agent(user_question):
+def ask_agent(user_question,client):
 
     conversation = [
         types.Content(
