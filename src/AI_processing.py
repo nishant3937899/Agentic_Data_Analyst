@@ -6,7 +6,7 @@ def load_api_key(api_ky=None):
     if api_ky:
         client = genai.Client(api_key=api_ky)
         return client
-    return genai.Client(api_key='ky')
+    return genai.Client(api_key='AQ.Ab8RN6KrHbjravuEBJmc1AIkaJ6l9elPF8CHZHqVbnCxfV9BYw')
 
 #gemini here
 def ask_agent(user_question,client):
