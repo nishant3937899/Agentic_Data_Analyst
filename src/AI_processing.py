@@ -1,12 +1,14 @@
 from google import genai
 from google.genai import types
 from .ai_tools import gemini_tools,execute_tool
+import os
 
 def load_api_key(api_ky=None):
     if api_ky:
         client = genai.Client(api_key=api_ky)
         return client
-    return genai.Client(api_key='AQ.Ab8RN6KrHbjravuEBJmc1AIkaJ6l9elPF8CHZHqVbnCxfV9BYw')
+    api_key = os.environ.get("GEMINI_API_KEY")
+    return genai.Client(api_key=api_key)
 
 #gemini here
 def ask_agent(user_question,client):

@@ -1,28 +1,8 @@
-# LLM & Agent Framework
-google-genai
-pydantic
-pydantic-settings
-
-# Data Engine & Analytics
-duckdb
+Flask
 pandas
 numpy
-
-# SQL Guardrails & Security
-sqlglot
-
-# Charting & Visualization
-matplotlib
-seaborn
-
-# Presentation Layer & API
-streamlit
-fastapi
-uvicorn
-
-# Experiment Tracking & Observability
-mlflow
-
-# Utilities & Testing
-python-dotenv
-pytest
+duckdb
+google-genai
+plotly
+markdown
+gunicorn
