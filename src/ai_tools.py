@@ -260,6 +260,10 @@ gemini_tools = [
 
                 Use this tool when an existing dataset does not contain a useful metric
                 directly, but the metric can be derived from existing columns.
+                
+                MOST IMPORTANT: 
+                -to use this function you must first run run_sql to get result_id. you should then pass this result id to function
+                -you should not pass result_id = data
 
                 Examples:
 
