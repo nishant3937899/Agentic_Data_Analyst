@@ -114,11 +114,17 @@
                         class="btn"
                         type="submit"
                     >
-
+                    
                         Load Data
 
                     </button>
-
+                     <!-- DOWNLOAD CURRENT DATA -->
+                    <a
+                        href="{{ url_for('download_csv') }}"
+                        class="btn download-btn"
+                    >
+                        ↓ Download CSV
+                    </a>
 
                     <span
                         id="upload-status"
@@ -128,7 +134,7 @@
 
                 </form>
 
-
+                
 
                 <!-- API KEY -->
 
@@ -409,9 +415,9 @@
 <script>
 
 
-// ======================================================
+// <--->
 // CSV FILE SELECTION
-// ======================================================
+// <--->
 
 const csvInput = document.getElementById("csv_file");
 
@@ -436,9 +442,9 @@ csvInput.addEventListener("change", function () {
 
 
 
-// ======================================================
+// <--->
 // CSV UPLOAD
-// ======================================================
+// <--->
 
 const uploadForm =
     document.getElementById("upload-form");
@@ -590,9 +596,9 @@ uploadForm.addEventListener("submit", async function (event) {
 
 
 
-// ======================================================
+// <--->
 // API KEY
-// ======================================================
+// <--->
 
 const apiForm =
     document.getElementById("api-form");
@@ -660,9 +666,9 @@ apiForm.addEventListener("submit", async function (event) {
 
 
 
-// ======================================================
+// <--->
 // CHAT
-// ======================================================
+// <--->
 
 const questionForm =
     document.getElementById("question-form");
@@ -693,7 +699,8 @@ questionForm.addEventListener("submit", async function (event) {
     if (!question) {
         return;
     }
-
+// Clear the input box
+    questionInput.value = "";
 
     // ----------------------------------------------
     // Remove empty state
@@ -758,8 +765,8 @@ questionForm.addEventListener("submit", async function (event) {
         </div>
 
         <div class="message-content thinking">
-            <span>Gemini is thinking</span>
-            <span class="dots">...</span>
+            <span>Gemini is thinking</span><span class="dots">...</span>
+            
         </div>
 
     `;
@@ -944,9 +951,9 @@ questionForm.addEventListener("submit", async function (event) {
 
 
 
-// ======================================================
+// <--->
 // ADD CHARTS
-// ======================================================
+// <--->
 
 function addCharts(charts) {
 
@@ -1025,9 +1032,9 @@ function addCharts(charts) {
 
 
 
-// ======================================================
+// <--->
 // CHAT SCROLL
-// ======================================================
+// <--->
 
 function scrollChatToBottom() {
 
@@ -1038,9 +1045,9 @@ function scrollChatToBottom() {
 
 
 
-// ======================================================
+// <--->
 // BASIC HTML ESCAPING
-// ======================================================
+// <--->
 
 function escapeHTML(text) {
 

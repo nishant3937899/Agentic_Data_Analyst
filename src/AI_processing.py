@@ -6,7 +6,7 @@ def load_api_key(api_ky=None):
     if api_ky:
         client = genai.Client(api_key=api_ky)
         return client
-    return genai.Client(api_key='ky')
+    return genai.Client(api_key='AQ.Ab8RN6KrHbjravuEBJmc1AIkaJ6l9elPF8CHZHqVbnCxfV9BYw')
 
 #gemini here
 def ask_agent(user_question,client):
@@ -50,7 +50,7 @@ def ask_agent(user_question,client):
 
         parts = candidate.content.parts
 
-        #print("\n🔍 DEBUG")
+        #print("\n DEBUG")
         #print("Finish reason:", candidate.finish_reason)
         #print("Parts:", parts)
         #print("Response:", response)
@@ -63,9 +63,9 @@ def ask_agent(user_question,client):
                 function_call = part.function_call
                 break
 
-        # ---------------------------------------
+        
         # Gemini wants to call a tool
-        # ---------------------------------------
+        
 
         if function_call:
 
@@ -125,9 +125,9 @@ def ask_agent(user_question,client):
 
             continue
 
-        # ---------------------------------------
+        
         # Gemini produced final answer
-        # ---------------------------------------
+        
 
         final_text = ""
 

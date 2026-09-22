@@ -47,6 +47,16 @@ def execute_tool(name, args):
         )
     elif name == 'inspect_data_quality':
         return inspect_data_quality()
+        
+    elif name == 'feature_engineering':
+        return feature_engineering(
+            result_id=args.get('result_id'),
+            operation=args.get('operation'),
+            new_column=args.get('new_column'),
+            column=args.get('column'),
+            column2=args.get('column2'),
+            value=args.get('value')
+        )
     else:
         raise ValueError(
             f"Unknown tool: {name}"
@@ -59,9 +69,9 @@ gemini_tools = [
     types.Tool(
         function_declarations=[
 
-            # =====================================================
+            # <----->
             # TOOL 1 — LOOKUP SCHEMA
-            # =====================================================
+            # <----->
 
             types.FunctionDeclaration(
                 name="lookup_schema",
@@ -83,9 +93,9 @@ gemini_tools = [
             ),
 
 
-            # =====================================================
+            # <----->
             # TOOL 2 — RUN SQL
-            # =====================================================
+            # <----->
 
             types.FunctionDeclaration(
                 name="run_sql",
@@ -135,9 +145,9 @@ gemini_tools = [
 
 
 
-            # =====================================================
+            # <----->
             # TOOL 4 — CLEAN DATA
-            # =====================================================
+            # <----->
 
             types.FunctionDeclaration(
                 name="clean_data",
@@ -238,9 +248,9 @@ gemini_tools = [
                     ]
                 }
             ),
-            # =====================================================
+            # <----->
             # TOOL 6 — featur engineering
-            # =====================================================
+            # <----->
             types.FunctionDeclaration(
                 name="feature_engineering",
 
@@ -271,7 +281,9 @@ gemini_tools = [
                 Do not create unnecessary features.
                 Prefer business-useful derived metrics that help answer the user's question.
                 Use the result_id returned by run_sql.
-                After creating a feature, use the new result_id for further analysis.
+                this directly modify the current data in the database.
+                After creating a feature, you should pull data using run_sql function.
+                
                 """,
 
                     parameters={
@@ -340,9 +352,9 @@ gemini_tools = [
                         ]
                     }
                 ),
-                # =====================================================
+                # <----->
                 # TOOL 5 — inspect data quality
-                # =====================================================
+                # <----->
                 types.FunctionDeclaration(
                     name="inspect_data_quality",
 
@@ -380,9 +392,9 @@ gemini_tools = [
                 ),
 
 
-            # =====================================================
+            # <----->
             # TOOL 3 — MAKE CHARTS
-            # =====================================================
+            # <----->
 
             types.FunctionDeclaration(
                 name="make_chart",

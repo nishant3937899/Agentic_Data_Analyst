@@ -1,20 +1,20 @@
 from src.AI_processing import ask_agent, load_api_key
-from flask import Flask, render_template, request, session, jsonify
+from flask import Flask, render_template, request, session, jsonify,send_file
 import pandas as pd
 import io
 import os
 import markdown
+from src.database import conn
 
 from src.database import load_dataframe
 
 
 app = Flask(__name__)
 
-app.secret_key = "change-this-later"
+app.secret_key = "kyisthis"
 
-# =========================================================
+
 # CLEAR OLD CHARTS
-# =========================================================
 
 def clear_old_charts():
 
@@ -37,9 +37,8 @@ def clear_old_charts():
                 print(f"Could not delete {filename}: {e}")
 
 
-# =========================================================
+
 # HOME PAGE
-# =========================================================
 
 @app.route("/")
 def home():
@@ -57,9 +56,8 @@ def home():
     )
 
 
-# =========================================================
+
 # UPLOAD CSV
-# =========================================================
 
 @app.route("/upload", methods=["POST"])
 def upload():
@@ -122,9 +120,8 @@ def upload():
         })
 
 
-# =========================================================
+
 # API KEY
-# =========================================================
 
 @app.route("/api-key", methods=["POST"])
 def set_api_key():
@@ -154,9 +151,8 @@ def set_api_key():
         })
 
 
-# =========================================================
+
 # ASK AI
-# =========================================================
 
 @app.route("/ask", methods=["POST"])
 def ask():
@@ -172,10 +168,9 @@ def ask():
         })
 
 
-    # -----------------------------------------------------
+    
     # Save USER message
-    # -----------------------------------------------------
-
+    
     messages = session.get("messages", [])
 
     messages.append({
@@ -188,16 +183,14 @@ def ask():
 
     try:
 
-        # -------------------------------------------------
+        
         # Load API client
-        # -------------------------------------------------
 
         client = load_api_key()
 
 
-        # -------------------------------------------------
+        
         # Ask agent
-        # -------------------------------------------------
 
         output = ask_agent(
             question,
@@ -205,10 +198,9 @@ def ask():
         )
 
 
-        # -------------------------------------------------
+        
         # Save AI response
-        # -------------------------------------------------
-
+        
         messages = session.get("messages", [])
 
         answer_html = markdown.markdown(
@@ -223,10 +215,9 @@ def ask():
         session["messages"] = messages
 
 
-        # -------------------------------------------------
+        
         # Save charts
-        # -------------------------------------------------
-
+        
         charts = session.get("charts", [])
 
         charts.extend(output["charts"])
@@ -247,10 +238,25 @@ def ask():
             "message": str(e)
         })
 
+# DOWNLOAD CSV
 
-# =========================================================
+@app.route("/download-csv")
+def download_csv():
+
+    df = conn.execute("SELECT * FROM data").fetchdf()
+
+    csv_data = io.BytesIO()
+    df.to_csv(csv_data, index=False)
+    csv_data.seek(0)
+
+    return send_file(
+        csv_data,
+        mimetype="text/csv",
+        as_attachment=True,
+        download_name="data.csv"
+    )
+
 # RUN
-# =========================================================
 
 if __name__ == "__main__":
 

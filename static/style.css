@@ -592,39 +592,14 @@ body {
 .thinking {
     display: flex;
     align-items: center;
-
-    gap: 3px;
-
-    color: #94a3b8 !important;
+    white-space: nowrap;
 }
 
 .dots {
     display: inline-block;
-
+    margin-left: 4px;
     width: 18px;
-
-    overflow: hidden;
-
-    animation: thinkingDots 1.2s infinite;
-}
-
-@keyframes thinkingDots {
-
-    0% {
-        width: 0;
-    }
-
-    33% {
-        width: 6px;
-    }
-
-    66% {
-        width: 12px;
-    }
-
-    100% {
-        width: 18px;
-    }
+    white-space: nowrap;
 }
 
 
@@ -939,4 +914,10 @@ body {
         padding: 15px;
     }
 
+}
+.download-btn {
+    text-decoration: none;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
 }

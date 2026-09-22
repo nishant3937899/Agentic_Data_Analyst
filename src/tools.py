@@ -8,7 +8,63 @@ import os
 import plotly.express as px
 import plotly.graph_objects as go
 
-#Tool 1 
+
+
+
+FORBIDDEN_SQL = [
+    "DROP",
+    "DELETE",
+    "UPDATE",
+    "INSERT",
+    "ALTER",
+    "CREATE",
+    "TRUNCATE",
+    "ATTACH",
+    "DETACH"
+]
+RESULTS = {}
+SUPPORTED_CHART_TYPES = [
+    "bar",
+    "horizontal_bar",
+    "line",
+    "area",
+    "scatter",
+    "histogram",
+    "box",
+    "violin",
+    "pie",
+    "donut",
+    "grouped_bar",
+    "stacked_bar",
+    "heatmap",
+    "correlation_heatmap",
+    "density",
+    "ecdf",
+    "pareto",
+    "rolling_line",
+    "hexbin",
+    "bubble",
+    "waterfall"
+]
+
+
+# 
+# DEFAULT COLOR PALETTE
+# 
+
+DEFAULT_PALETTE = [
+    "#4C78A8",
+    "#F58518",
+    "#54A24B",
+    "#E45756",
+    "#72B7B2",
+    "#B279A2",
+    "#FF9DA6",
+    "#9D755D",
+    "#BAB0AC"
+]
+
+#TOOL-1 
 def lookup_schema():
     """
     Return the schema of all tables in the DuckDB database.
@@ -30,20 +86,7 @@ def lookup_schema():
 
     return schema
 
-#Tool 2 
-FORBIDDEN_SQL = [
-    "DROP",
-    "DELETE",
-    "UPDATE",
-    "INSERT",
-    "ALTER",
-    "CREATE",
-    "TRUNCATE",
-    "ATTACH",
-    "DETACH"
-]
-RESULTS = {}
-
+#TOOL-2
 def run_sql(query):
 
    
@@ -105,49 +148,7 @@ def run_sql(query):
         "data": result.to_dict("records")
     }
 
-
-SUPPORTED_CHART_TYPES = [
-    "bar",
-    "horizontal_bar",
-    "line",
-    "area",
-    "scatter",
-    "histogram",
-    "box",
-    "violin",
-    "pie",
-    "donut",
-    "grouped_bar",
-    "stacked_bar",
-    "heatmap",
-    "correlation_heatmap",
-    "density",
-    "ecdf",
-    "pareto",
-    "rolling_line",
-    "hexbin",
-    "bubble",
-    "waterfall"
-]
-
-
-# ============================================================
-# DEFAULT COLOR PALETTE
-# ============================================================
-
-DEFAULT_PALETTE = [
-    "#4C78A8",
-    "#F58518",
-    "#54A24B",
-    "#E45756",
-    "#72B7B2",
-    "#B279A2",
-    "#FF9DA6",
-    "#9D755D",
-    "#BAB0AC"
-]
-
-#tool3
+#TOOL-3
 def make_chart(
     result_id,
     chart_type,
@@ -175,9 +176,9 @@ def make_chart(
 
     
 
-    # ============================================================
+    # 
     # 1. VALIDATE RESULT
-    # ============================================================
+    # 
 
     if result_id not in RESULTS:
         raise ValueError(f"Unknown result_id: {result_id}")
@@ -187,9 +188,9 @@ def make_chart(
     if df.empty:
         raise ValueError("The result contains no data to plot.")
 
-    # ============================================================
+    # 
     # 2. NORMALIZE INPUTS
-    # ============================================================
+    # 
 
     chart_type = str(chart_type).lower().strip()
 
@@ -200,9 +201,9 @@ def make_chart(
     else:
         y_columns = []
 
-    # ============================================================
+    # 
     # 3. VALIDATE COLUMNS
-    # ============================================================
+    # 
 
     if x and x not in df.columns:
         raise ValueError(
@@ -233,24 +234,24 @@ def make_chart(
     if hue == x:
         hue = None
 
-    # ============================================================
+    # 
     # 4. CREATE CHART DIRECTORY
-    # ============================================================
+    # 
 
     os.makedirs("charts", exist_ok=True)
 
-    # ============================================================
+    # 
     # 5. UNIQUE CHART ID
-    # ============================================================
+    # 
 
     chart_id = str(uuid.uuid4())
 
     chart_filename = f"{chart_id}.html"
     chart_path = os.path.join("charts", chart_filename)
 
-    # ============================================================
+    # 
     # 6. COLOR SETTINGS
-    # ============================================================
+    # 
 
     color_sequence = None
 
@@ -263,9 +264,9 @@ def make_chart(
     elif palette:
         color_sequence = px.colors.qualitative.Plotly
 
-    # ============================================================
+    # 
     # 7. CREATE FIGURE
-    # ============================================================
+    # 
 
     fig = None
 
@@ -812,9 +813,9 @@ def make_chart(
 
         fig.update_layout(title=title)
 
-    # ============================================================
+    # 
     # 8. UNKNOWN CHART
-    # ============================================================
+    # 
 
     else:
 
@@ -847,9 +848,9 @@ def make_chart(
             f"Supported charts: {supported_charts}"
         )
 
-    # ============================================================
+    # 
     # 9. COMMON PLOTLY STYLING
-    # ============================================================
+    # 
 
     fig.update_layout(
         height=height,
@@ -861,9 +862,9 @@ def make_chart(
     if rotation:
         fig.update_xaxes(tickangle=rotation)
 
-    # ============================================================
+    # 
     # 10. SAVE INTERACTIVE HTML
-    # ============================================================
+    # 
 
     chart_id = uuid.uuid4().hex
 
@@ -902,9 +903,9 @@ def make_chart(
 
     with open(chart_path, "w", encoding="utf-8") as f:
         f.write(html)
-    # ============================================================
+    # 
     # 11. RETURN INFORMATION
-    # ============================================================
+    # 
 
     return {
         "status": "success",
@@ -916,7 +917,7 @@ def make_chart(
         "chart_path": f"charts/{chart_filename}"
     }
 
-#tool 4
+#TOOL-4
 def clean_data(
     
     table_name="data",
@@ -1246,7 +1247,7 @@ def clean_data(
         "operations_performed": changes
     }
 
-#tool 5
+#TOOL-5
 def inspect_data_quality():
 
     df = conn.execute("SELECT * FROM data").fetchdf()
@@ -1271,7 +1272,7 @@ def inspect_data_quality():
 
     return report
 
-#tool 6
+#TOOL-6
 def feature_engineering(
     result_id,
     operation,
@@ -1304,7 +1305,7 @@ def feature_engineering(
     if result_id not in RESULTS:
         raise ValueError(f"Unknown result_id: {result_id}")
 
-    df = RESULTS[result_id].copy()
+    df = RESULTS[result_id]
 
     if new_column in df.columns:
         raise ValueError(
@@ -1415,15 +1416,14 @@ def feature_engineering(
             f"Unsupported feature engineering operation: {operation}"
         )
 
-    # Store updated result
-    new_result_id = str(uuid.uuid4())[:8]
-
-    RESULTS[new_result_id] = df
+    
+    conn.unregister("data")
+    conn.register("data", df)
 
     return {
         "status": "success",
         "message": f"Feature '{new_column}' created successfully.",
-        "result_id": new_result_id,
+        "result_id": result_id,
         "new_column": new_column,
         "operation": operation,
         "row_count": len(df),
