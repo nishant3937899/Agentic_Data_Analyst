@@ -4,5 +4,6 @@ numpy
 duckdb
 google-genai
 plotly
+matplotlib
 markdown
 gunicorn
