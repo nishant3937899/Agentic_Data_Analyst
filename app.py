@@ -11,7 +11,8 @@ from src.database import load_dataframe
 
 app = Flask(__name__)
 
-app.secret_key = "FLASK_SECRET_KEY"
+app.secret_key = os.environ.get("FLASK_SECRET_KEY")
+
 
 
 # CLEAR OLD CHARTS
