@@ -23,7 +23,13 @@ Users can simply upload their CSV file and ask questions about their data. The A
 -  **SQL analysis with DuckDB**
 -  **Natural-language questions**
 -  **CSV file upload**
+## Tech Stack
 
+- **Backend & Web Framework:** Python, Flask, Gunicorn
+- **AI & LLM:** Google Gemini (`google-genai`)
+- **Data Analysis & Querying:** DuckDB, Pandas, NumPy
+- **Visualization:** Plotly, Matplotlib
+- **Utilities:** Markdown
 
 ## How It Works
 ```
@@ -62,4 +68,44 @@ Flask
  ↓
 Display Answer + Charts
 ```
+## Project Structure
+```
+Agentic_Data_Analyst-main/
+│
+├── research/                 # Research notebooks and experiments
+│   ├── test.ipynb
+│   └── test2.0.ipynb
+│
+├── src/                      # Source code modules
+│   ├── __init__.py
+│   ├── AI_processing.py      # Core AI logic and processing
+│   ├── ai_tools.py           # Tools info and executing function
+│   ├── database.py           # Database connection 
+│   └── tools.py              # Main tools
+│
+├── static/                   # Static assets
+│   └── style.css             # Stylesheet for frontend styling
+│
+├── templates/                # HTML templates
+│   └── index.html            # Main web interface view
+│
+├── .gitignore                # Git ignore file
+├── README.md                 # Project documentation
+├── __init__.py               
+├── app.py                    # Main Flask/Web application entry point
+└── requirement.txt           # Project dependencies
+```
+## How to Run 
+
+```
+git pull origin main
+    ↓
+pip install -r requirement.txt
+    ↓
+run app.py
+```
+## Author
+
+Nishant Chandra Verma
+
 
