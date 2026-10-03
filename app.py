@@ -6,6 +6,8 @@ import os
 import markdown
 from src.database import conn
 
+from dotenv import load_dotenv
+
 from src.database import load_dataframe
 
 
@@ -14,6 +16,7 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY")
 
 
+load_dotenv()
 
 # CLEAR OLD CHARTS
 

@@ -7,21 +7,12 @@ from .database import conn, RESULTS
 import os
 import plotly.express as px
 import plotly.graph_objects as go
+import re
 
 
 
 
-FORBIDDEN_SQL = [
-    "DROP",
-    "DELETE",
-    "UPDATE",
-    "INSERT",
-    "ALTER",
-    "CREATE",
-    "TRUNCATE",
-    "ATTACH",
-    "DETACH"
-]
+
 RESULTS = {}
 SUPPORTED_CHART_TYPES = [
     "bar",
@@ -89,65 +80,89 @@ def lookup_schema():
 #TOOL-2
 def run_sql(query):
 
-   
     query_clean = query.strip()
 
-
+    # Remove empty statements
     statements = [
         statement.strip()
         for statement in query_clean.split(";")
         if statement.strip()
     ]
 
+    if not statements:
+        raise ValueError("Empty SQL query.")
+
     if len(statements) > 1:
         raise ValueError(
             "Only one SQL statement is allowed per tool call."
         )
 
-    if not statements:
-        raise ValueError("Empty SQL query.")
-
     query_clean = statements[0]
-
- 
-
     query_upper = query_clean.upper()
 
-    if not (
-        query_upper.startswith("SELECT")
-        or query_upper.startswith("WITH")
-    ):
-        raise ValueError(
-            "Only SELECT and WITH queries are allowed."
-        )
+    # Block dangerous database operations
+    forbidden = [
+        "DROP",
+        "CREATE",
+        "TRUNCATE",
+        "ATTACH",
+        "DETACH"
+    ]
 
-
-    for keyword in FORBIDDEN_SQL:
-
-        if keyword in query_upper:
+    for keyword in forbidden:
+        if re.search(rf"\b{keyword}\b", query_upper):
             raise ValueError(
-                f"Forbidden SQL keyword detected: {keyword}"
+                f"SQL operation '{keyword}' is not allowed."
             )
-    result = conn.execute(query_clean).fetchdf()
 
+    # Execute SQL
+    result = conn.execute(query_clean)
 
+    # SELECT / WITH → return query result
+    if query_upper.startswith(("SELECT", "WITH")):
 
-    result = result.head(100)
+        df = result.fetchdf()
+        df = df.head(100)
 
+        result_id = str(uuid.uuid4())[:8]
+        RESULTS[result_id] = df
 
-    result_id = str(uuid.uuid4())[:8]
+        return {
+            "status": "success",
+            "operation": "query",
+            "result_id": result_id,
+            "row_count": len(df),
+            "columns": list(df.columns),
+            "data": df.to_dict("records")
+        }
 
-    RESULTS[result_id] = result
+    # UPDATE / DELETE → return updated dataset
+    elif query_upper.startswith(("UPDATE", "DELETE","ALTER")):
 
- 
+        df = conn.execute(
+            "SELECT * FROM data"
+        ).fetchdf()
 
-    return {
-        "result_id": result_id,
-        "row_count": len(result),
-        "columns": list(result.columns),
-        "data": result.to_dict("records")
-    }
+        df_preview = df.head(100)
 
+        result_id = str(uuid.uuid4())[:8]
+        RESULTS[result_id] = df
+
+        return {
+            "status": "success",
+            "operation": "data_modified",
+            "message": "SQL operation executed successfully.",
+            "result_id": result_id,
+            "row_count": len(df),
+            "columns": list(df.columns),
+            "data": df_preview.to_dict("records")
+        }
+
+    else:
+        raise ValueError(
+            "Only SELECT, WITH, UPDATE, and DELETE statements "
+            "are allowed."
+        )
 #TOOL-3
 def make_chart(
     result_id,
@@ -917,337 +932,8 @@ def make_chart(
         "chart_path": f"charts/{chart_filename}"
     }
 
+
 #TOOL-4
-def clean_data(
-    
-    table_name="data",
-    operations=None
-):
-    """
-    Clean a dataset using a predefined set of safe operations.
-
-    Supported operations:
-        - remove_duplicates
-        - drop_null_rows
-        - fill_numeric_nulls_mean
-        - fill_numeric_nulls_median
-        - fill_numeric_nulls_zero
-        - fill_text_nulls
-        - strip_whitespace
-        - lowercase_text
-        - uppercase_text
-
-    Parameters
-    ----------
-    table_name : str
-        Name of the DuckDB table to clean.
-
-    operations : list
-        List of cleaning operations to perform.
-
-    Returns
-    -------
-    dict
-        Summary of the cleaning operations performed.
-    """
-
-    if operations is None:
-        operations = []
-
-    # ---------------------------------------------------------
-    # Validate table
-    # ---------------------------------------------------------
-
-    tables = conn.sql("SHOW TABLES").fetchdf()
-
-    if table_name not in tables["name"].tolist():
-        raise ValueError(
-            f"Table '{table_name}' does not exist."
-        )
-
-    # ---------------------------------------------------------
-    # Load data
-    # ---------------------------------------------------------
-
-    df = conn.sql(
-        f'SELECT * FROM "{table_name}"'
-    ).fetchdf()
-
-    original_rows = len(df)
-    original_columns = len(df.columns)
-
-    changes = []
-
-    # ---------------------------------------------------------
-    # Perform cleaning operations
-    # ---------------------------------------------------------
-
-    for operation in operations:
-
-        # ---------------------------------------------
-        # Remove duplicate rows
-        # ---------------------------------------------
-
-        if operation == "remove_duplicates":
-
-            before = len(df)
-
-            df = df.drop_duplicates()
-
-            removed = before - len(df)
-
-            changes.append({
-                "operation": operation,
-                "rows_removed": removed
-            })
-
-        # ---------------------------------------------
-        # Drop rows containing NULL values
-        # ---------------------------------------------
-
-        elif operation == "drop_null_rows":
-
-            before = len(df)
-
-            df = df.dropna()
-
-            removed = before - len(df)
-
-            changes.append({
-                "operation": operation,
-                "rows_removed": removed
-            })
-
-        # ---------------------------------------------
-        # Fill numeric NULLs with mean
-        # ---------------------------------------------
-
-        elif operation == "fill_numeric_nulls_mean":
-
-            numeric_columns = df.select_dtypes(
-                include="number"
-            ).columns
-
-            filled = {}
-
-            for column in numeric_columns:
-
-                count = int(df[column].isna().sum())
-
-                if count > 0:
-
-                    mean_value = df[column].mean()
-
-                    df[column] = df[column].fillna(
-                        mean_value
-                    )
-
-                    filled[column] = count
-
-            changes.append({
-                "operation": operation,
-                "columns": filled
-            })
-
-        # ---------------------------------------------
-        # Fill numeric NULLs with median
-        # ---------------------------------------------
-
-        elif operation == "fill_numeric_nulls_median":
-
-            numeric_columns = df.select_dtypes(
-                include="number"
-            ).columns
-
-            filled = {}
-
-            for column in numeric_columns:
-
-                count = int(df[column].isna().sum())
-
-                if count > 0:
-
-                    median_value = df[column].median()
-
-                    df[column] = df[column].fillna(
-                        median_value
-                    )
-
-                    filled[column] = count
-
-            changes.append({
-                "operation": operation,
-                "columns": filled
-            })
-
-        # ---------------------------------------------
-        # Fill numeric NULLs with zero
-        # ---------------------------------------------
-
-        elif operation == "fill_numeric_nulls_zero":
-
-            numeric_columns = df.select_dtypes(
-                include="number"
-            ).columns
-
-            filled = {}
-
-            for column in numeric_columns:
-
-                count = int(df[column].isna().sum())
-
-                if count > 0:
-
-                    df[column] = df[column].fillna(0)
-
-                    filled[column] = count
-
-            changes.append({
-                "operation": operation,
-                "columns": filled
-            })
-
-        # ---------------------------------------------
-        # Fill text NULLs
-        # ---------------------------------------------
-
-        elif operation == "fill_text_nulls":
-
-            text_columns = df.select_dtypes(
-                include=["object", "string"]
-            ).columns
-
-            filled = {}
-
-            for column in text_columns:
-
-                count = int(df[column].isna().sum())
-
-                if count > 0:
-
-                    df[column] = df[column].fillna(
-                        "Unknown"
-                    )
-
-                    filled[column] = count
-
-            changes.append({
-                "operation": operation,
-                "columns": filled
-            })
-
-        # ---------------------------------------------
-        # Strip whitespace from text
-        # ---------------------------------------------
-
-        elif operation == "strip_whitespace":
-
-            text_columns = df.select_dtypes(
-                include=["object", "string"]
-            ).columns
-
-            affected = []
-
-            for column in text_columns:
-
-                df[column] = df[column].apply(
-                    lambda value:
-                    value.strip()
-                    if isinstance(value, str)
-                    else value
-                )
-
-                affected.append(column)
-
-            changes.append({
-                "operation": operation,
-                "columns": affected
-            })
-
-        # ---------------------------------------------
-        # Lowercase text
-        # ---------------------------------------------
-
-        elif operation == "lowercase_text":
-
-            text_columns = df.select_dtypes(
-                include=["object", "string"]
-            ).columns
-
-            for column in text_columns:
-
-                df[column] = df[column].apply(
-                    lambda value:
-                    value.lower()
-                    if isinstance(value, str)
-                    else value
-                )
-
-            changes.append({
-                "operation": operation,
-                "columns": list(text_columns)
-            })
-
-        # ---------------------------------------------
-        # Uppercase text
-        # ---------------------------------------------
-
-        elif operation == "uppercase_text":
-
-            text_columns = df.select_dtypes(
-                include=["object", "string"]
-            ).columns
-
-            for column in text_columns:
-
-                df[column] = df[column].apply(
-                    lambda value:
-                    value.upper()
-                    if isinstance(value, str)
-                    else value
-                )
-
-            changes.append({
-                "operation": operation,
-                "columns": list(text_columns)
-            })
-
-        # ---------------------------------------------
-        # Unknown operation
-        # ---------------------------------------------
-
-        else:
-
-            raise ValueError(
-                f"Unsupported cleaning operation: {operation}"
-            )
-
-    # ---------------------------------------------------------
-    # Replace DuckDB table
-    # ---------------------------------------------------------
-
-    conn.unregister(table_name)
-
-    conn.register(table_name, df)
-
-    # ---------------------------------------------------------
-    # Return summary
-    # ---------------------------------------------------------
-
-    return {
-        "status": "success",
-        "table": table_name,
-        "original_rows": original_rows,
-        "final_rows": len(df),
-        "rows_removed": original_rows - len(df),
-        "columns": original_columns,
-        "null_values_remaining": int(
-            df.isna().sum().sum()
-        ),
-        "operations_performed": changes
-    }
-
-#TOOL-5
 def inspect_data_quality():
 
     df = conn.execute("SELECT * FROM data").fetchdf()
@@ -1272,7 +958,7 @@ def inspect_data_quality():
 
     return report
 
-#TOOL-6
+#TOOL-5
 def feature_engineering(
     result_id,
     operation,
@@ -1430,8 +1116,5 @@ def feature_engineering(
         "columns": list(df.columns),
         "data": df.head(100).to_dict("records")
     }
-
-
-
 
 

@@ -7,3 +7,4 @@ plotly
 matplotlib
 markdown
 gunicorn
+python-dotenv

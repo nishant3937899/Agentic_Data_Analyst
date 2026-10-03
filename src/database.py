@@ -10,23 +10,21 @@ RESULTS = {}
 
 
 def load_dataframe(df):
-    """
-    Load the uploaded pandas DataFrame into DuckDB.
-    """
 
     if not isinstance(df, pd.DataFrame):
         raise TypeError("Expected a pandas DataFrame.")
 
-    # Remove previous registered table
-    try:
-        conn.unregister("data")
-    except Exception:
-        pass
+    conn.execute("DROP TABLE IF EXISTS data")
 
-    # Register uploaded dataframe
-    conn.register("data", df)
+    conn.register("temp_df", df)
 
-    # Clear old query results
+    conn.execute("""
+        CREATE TABLE data AS
+        SELECT * FROM temp_df
+    """)
+
+    conn.unregister("temp_df")
+
     RESULTS.clear()
 
     return {

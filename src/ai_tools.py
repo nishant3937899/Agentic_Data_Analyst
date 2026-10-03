@@ -4,7 +4,7 @@ import matplotlib.pyplot as plt
 import numpy as np
 from google import genai
 from google.genai import types
-from .tools import lookup_schema,run_sql,clean_data,make_chart,feature_engineering,inspect_data_quality
+from .tools import lookup_schema,run_sql,make_chart,feature_engineering,inspect_data_quality
 
 #gemini execute tools
 def execute_tool(name, args):
@@ -40,11 +40,7 @@ def execute_tool(name, args):
             size=args.get("size")
     )
 
-    elif name == "clean_data":
-        return clean_data(
-            table_name=args.get("table_name", "data"),
-            operations=args["operations"]
-        )
+  
     elif name == 'inspect_data_quality':
         return inspect_data_quality()
         
@@ -100,154 +96,97 @@ gemini_tools = [
             types.FunctionDeclaration(
                 name="run_sql",
                 description="""
-                Execute a read-only SQL query against DuckDB.
+                
+                    Execute a single SQL statement against the uploaded dataset.
 
-                Use this to retrieve, aggregate, filter,
-                compare, or analyze data.
+                    This tool can be used for both data analysis and data modification.
 
-                Only SELECT and WITH queries are allowed.
+                    The uploaded dataset is normally available as the DuckDB table 'data'.
 
-                The result is stored internally and returns
-                a result_id that can later be used by make_chart.
+                    Allowed SQL operations:
+                    - SELECT
+                    - WITH
+                    - UPDATE
+                    - DELETE
+                    - ALTER
 
-                Always use the actual table and column names
-                discovered from lookup_schema.
+                    Use SELECT or WITH when you need to:
+                    - inspect the dataset
+                    - filter rows
+                    - select columns
+                    - group and aggregate data
+                    - calculate statistics
+                    - compare values
+                    - investigate data-quality problems
+                    - answer analytical questions
 
-                IMPORTANT:
-                - Only ONE SQL statement may be provided per call.
-                - Do NOT send multiple SELECT statements separated by semicolons.
-                - If you need information about multiple columns, combine the analysis
-                into one SQL query whenever possible.
-                - Use SELECT or WITH queries only.
-                - Never modify the database.
-                - Results are automatically limited to 100 rows.
+                    Use UPDATE when you need to:
+                    - clean incorrect values
+                    - replace missing or blank values
+                    - standardize values
+                    - modify existing column values
 
-                For example, DO NOT do:
+                    Use DELETE when you need to:
+                    - remove unwanted rows
+                    - remove rows based on a specific condition
+                    - remove duplicate or invalid records when appropriate
 
-                SELECT DISTINCT gender FROM data;
-                SELECT DISTINCT lunch FROM data;
-                SELECT DISTINCT race_ethnicity FROM data;
+                    IMPORTANT:
+                    - Only ONE SQL statement is allowed per tool call.
+                    - Do not use DROP, CREATE, TRUNCATE, ATTACH, or DETACH.
+                    - Do not invent table names. The uploaded dataset is normally 'data'.
+                    - Inspect the data before modifying it when necessary.
+                    - Use WHERE conditions carefully with UPDATE and DELETE to avoid
+                    modifying unintended rows.
+                    - Do not modify data unnecessarily.
+                    - After SELECT or WITH, the tool returns the query result.
+                    - After UPDATE or DELETE, the tool returns the updated dataset.
+                    - The result is limited to the first 100 rows when returned to the model.
 
-                Instead, make separate tool calls when necessary, or use a single
-                query that summarizes the required information.
-                """,
-                parameters={
-                    "type": "object",
-                    "properties": {
-                        "query": {
-                            "type": "string",
-                            "description": "A read-only SQL query."
-                        }
-                    },
-                    "required": ["query"]
-                }
-            ),
+                    Examples:
 
+                    Analysis:
+                    SELECT * FROM data LIMIT 10
 
+                    Analysis:
+                    SELECT gender, AVG(math_score)
+                    FROM data
+                    GROUP BY gender
 
-            # <----->
-            # TOOL 4 — CLEAN DATA
-            # <----->
+                    Cleaning:
+                    UPDATE data
+                    SET TotalCharges = '0'
+                    WHERE TotalCharges = ' '
 
-            types.FunctionDeclaration(
-                name="clean_data",
-                description="""
-                Clean the dataset when data-quality problems could
-                affect the analysis.
+                    Cleaning:
+                    UPDATE data
+                    SET column_name = NULL
+                    WHERE column_name = ''
 
-                IMPORTANT:
-                - Inspect the data before deciding that cleaning
-                  is necessary.
-                - Do not clean data unnecessarily.
-                - Prefer the least destructive operation that
-                  solves the problem.
-                - Cleaning changes the current in-memory DuckDB table.
-                - Do not invent cleaning operations.
-                - Only use the supported operations listed below.
-
-                Supported operations:
-
-                remove_duplicates:
-                    Remove completely duplicated rows.
-
-                drop_null_rows:
-                    Remove rows containing one or more NULL values.
-                    Use cautiously because this can remove many rows.
-
-                fill_numeric_nulls_mean:
-                    Replace missing numerical values with the column mean.
-                    Use when mean imputation is appropriate.
-
-                fill_numeric_nulls_median:
-                    Replace missing numerical values with the column median.
-                    Prefer this when numerical data may contain outliers.
-
-                fill_numeric_nulls_zero:
-                    Replace missing numerical values with zero.
-                    Only use when zero has a meaningful interpretation.
-
-                fill_text_nulls:
-                    Replace missing text values with 'Unknown'.
-
-                strip_whitespace:
-                    Remove leading and trailing whitespace from text columns.
-                    Useful for inconsistent categorical values.
-
-                lowercase_text:
-                    Convert text columns to lowercase when capitalization
-                    should not represent different categories.
-
-                uppercase_text:
-                    Convert text columns to uppercase when standardized
-                    uppercase text is appropriate.
-
-                Multiple operations may be provided when several
-                data-quality problems are present.
-
-                Return a summary of the cleaning performed,
-                including rows removed and remaining NULL values.
-                """,
-                parameters={
-                    "type": "object",
-                    "properties": {
-
-                        "table_name": {
-                            "type": "string",
-                            "description": """
-                            Name of the DuckDB table to clean.
-                            Usually 'data'.
-                            """
-                        },
-
-                        "operations": {
-                            "type": "array",
-                            "items": {
+                    Removing rows:
+                    DELETE FROM data
+                    WHERE column_name IS NULL
+                    """,
+                    parameters={
+                        "type": "object",
+                        "properties": {
+                            "query": {
                                 "type": "string",
-                                "enum": [
-                                    "remove_duplicates",
-                                    "drop_null_rows",
-                                    "fill_numeric_nulls_mean",
-                                    "fill_numeric_nulls_median",
-                                    "fill_numeric_nulls_zero",
-                                    "fill_text_nulls",
-                                    "strip_whitespace",
-                                    "lowercase_text",
-                                    "uppercase_text"
-                                ]
-                            },
-                            "description": """
-                            List of cleaning operations to perform.
-                            Use only the supported operations.
-                            """
-                        }
-                    },
+                                "description": """
+                                A single SQL statement to analyze, clean, or modify
+                                the uploaded dataset.
 
-                    "required": [
-                        "table_name",
-                        "operations"
-                    ]
-                }
+                                Use the table name 'data'.
+
+                                The statement must be one of:
+                                SELECT, WITH, UPDATE, or DELETE.
+                                """
+                            }
+                        },
+                        "required": ["query"]
+                    }
             ),
+
             # <----->
             # TOOL 6 — featur engineering
             # <----->
