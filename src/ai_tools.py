@@ -530,7 +530,10 @@ gemini_tools = [
 
                         "x": {
                             "type": "string",
-                            "description": "Column used for the x-axis or category."
+                            "description": '''Column used for the x-axis or category.
+
+                                For a histogram, x must be the single numeric column
+                                whose distribution should be visualized.'''
                         },
 
                         "y": {

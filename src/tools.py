@@ -122,7 +122,7 @@ def run_sql(query):
     if query_upper.startswith(("SELECT", "WITH")):
 
         df = result.fetchdf()
-        df = df.head(100)
+        df = df.head(50)
 
         result_id = str(uuid.uuid4())[:8]
         RESULTS[result_id] = df
@@ -143,7 +143,7 @@ def run_sql(query):
             "SELECT * FROM data"
         ).fetchdf()
 
-        df_preview = df.head(100)
+        df_preview = df.head(50)
 
         result_id = str(uuid.uuid4())[:8]
         RESULTS[result_id] = df
@@ -399,12 +399,12 @@ def make_chart(
 
     elif chart_type == "histogram":
 
-        if not y_columns:
-            raise ValueError("histogram requires y.")
+        if not x:
+            raise ValueError("histogram requires x.")
 
         fig = px.histogram(
             df,
-            x=y_columns[0],
+            x=x,
             color=hue,
             nbins=bins,
             title=title,
