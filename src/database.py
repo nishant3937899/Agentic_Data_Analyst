@@ -14,15 +14,28 @@ def load_dataframe(df):
     if not isinstance(df, pd.DataFrame):
         raise TypeError("Expected a pandas DataFrame.")
 
-    conn.execute("DROP TABLE IF EXISTS data")
+    # Remove existing registered view if it exists
+    try:
+        conn.unregister("data")
+    except Exception:
+        pass
 
+    # Remove existing DuckDB table if it exists
+    try:
+        conn.execute("DROP TABLE IF EXISTS data")
+    except Exception:
+        pass
+
+    # Register dataframe temporarily
     conn.register("temp_df", df)
 
+    # Create a real DuckDB table
     conn.execute("""
         CREATE TABLE data AS
         SELECT * FROM temp_df
     """)
 
+    # Remove temporary registration
     conn.unregister("temp_df")
 
     RESULTS.clear()
