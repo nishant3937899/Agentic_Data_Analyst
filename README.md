@@ -8,8 +8,8 @@ Users can simply upload their CSV file and ask questions about their data. The A
 
 🔗 **[Live Project](https://agentic-data-analyst-3v3f.onrender.com/)**
 
-##  Demo
-
+##  preview
+![image](https://github.com/nishant3937899/Agentic_Data_Analyst/blob/3c127a2c53e4c33364cdc97ede6541f1cd3d08e9/sample_img.png)
 <!-- Add your project GIF here -->
 
 ![Demo](path/to/demo.gif)
