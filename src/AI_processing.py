@@ -44,7 +44,7 @@ def ask_agent(user_question,client):
         print("\n🤖 Gemini thinking...")
 
         response = client.models.generate_content(
-            model="gemini-3.1-flash-lite",
+            model="gemini-3.5-flash-lite",
             contents=conversation,
             config=types.GenerateContentConfig(
                 tools=gemini_tools,
@@ -116,7 +116,7 @@ def ask_agent(user_question,client):
             # Send result back to Gemini
             conversation.append(
                 types.Content(
-                    role="tool",
+                    role="user",
                     parts=[
                         types.Part(
                             function_response=
